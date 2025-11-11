@@ -15,7 +15,7 @@ class ReportBuilder:
         loaders = []
         if template_dir:
             loaders.append(FileSystemLoader(str(template_dir)))
-        loaders.append(PackageLoader("spamreporter", "templates"))
+        loaders.append(PackageLoader("spammy", "templates"))
         self.env = Environment(
             loader=ChoiceLoader(loaders),
             autoescape=select_autoescape(["html", "xml"]),

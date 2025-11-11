@@ -22,7 +22,7 @@ pip install --upgrade pip
 pip install -e .
 ```
 
-The editable install exposes a `spamreporter` CLI (defined in `pyproject.toml`).
+The editable install exposes a `spammy` CLI (defined in `pyproject.toml`).
 
 ---
 
@@ -31,7 +31,7 @@ The editable install exposes a `spamreporter` CLI (defined in `pyproject.toml`).
 Basic analysis from a file:
 
 ```bash
-spamreporter --eml samples/spam.eml \
+spammy --eml samples/spam.eml \
   --output-html /tmp/report.html \
   --output-json /tmp/report.json \
   --output-text /tmp/report.txt
@@ -40,7 +40,7 @@ spamreporter --eml samples/spam.eml \
 Reading from stdin (ideal for Dovecot/Postfix):
 
 ```bash
-cat spam.eml | spamreporter --stdout-format text
+cat spam.eml | spammy --stdout-format text
 ```
 
 Important flags:
@@ -60,7 +60,7 @@ The JSON output matches `AnalysisResult.to_dict()` and can be fed into ticketing
 
 ## Template localization
 
-Templates live under `src/spamreporter/templates`. Each language has:
+Templates live under `src/spammy/templates`. Each language has:
 
 - `report_<lang>.html.j2` – HTML email body with styling.
 - `report_<lang>.txt.j2` – Plain text fallback.
@@ -82,11 +82,11 @@ Create your own files in `/etc/spammy/templates` (or similar) and reference them
    }
    ```
 
-2. Place an executable wrapper, e.g. `/usr/local/libexec/sieve-pipes/spamreporter.sh`:
+2. Place an executable wrapper, e.g. `/usr/local/libexec/sieve-pipes/spammy.sh`:
 
    ```bash
    #!/bin/sh
-   /usr/local/bin/spamreporter --stdout-format none \
+   /usr/local/bin/spammy --stdout-format none \
      --output-html /var/spamreports/${SIEVE_MAILBOX}.html \
      --output-json /var/spamreports/${SIEVE_MAILBOX}.json
    ```
@@ -95,7 +95,7 @@ Create your own files in `/etc/spammy/templates` (or similar) and reference them
 
    ```sieve
    if header :contains "X-Report-Spam" "yes" {
-     pipe :copy "spamreporter.sh";
+     pipe :copy "spammy.sh";
      stop;
    }
    ```
@@ -107,7 +107,7 @@ The full EML (including attachments) reaches the CLI via stdin. Dovecot exports 
 - **Alias pipe** (`virtual_alias_maps`):
 
   ```
-  spamreport@yourdomain.example  "|/usr/local/bin/spamreporter --stdout-format none --output-html /var/spamreports/latest.html"
+  spamreport@yourdomain.example  "|/usr/local/bin/spammy --stdout-format none --output-html /var/spamreports/latest.html"
   ```
 
 - **Dedicated transport (`master.cf`)**:
@@ -115,7 +115,7 @@ The full EML (including attachments) reaches the CLI via stdin. Dovecot exports 
   ```
   spamreport unix  -       n       n       -       -       pipe
     user=spam reporter
-    argv=/usr/local/bin/spamreporter --stdout-format json --output-json /var/spamreports/${recipient}.json
+    argv=/usr/local/bin/spammy --stdout-format json --output-json /var/spamreports/${recipient}.json
   ```
 
 Point suspicious messages (e.g. forwarded to `spamreport@`) at the transport.
@@ -130,9 +130,9 @@ While the CLI covers on-demand use, you can extend the toolchain into always-on 
 
 2. **rspamd external service** – configure `external_services.conf` or a Lua script to call a lightweight daemon whenever `X-Spam-Flag: YES`. The daemon exposes a simple HTTP/TCP endpoint (`POST /analyze` with the full EML), runs the same analysis module, and stores/dispatches the reports.
 
-3. **Systemd worker** – run a background `spamreporter-worker` that consumes EML files dropped into a spool (e.g. by `pipe` or `rspamd`) and delivers HTML/JSON summaries via email or a webhook.
+3. **Systemd worker** – run a background `spammy-worker` that consumes EML files dropped into a spool (e.g. by `pipe` or `rspamd`) and delivers HTML/JSON summaries via email or a webhook.
 
-These modes require additional queueing, authentication, and error handling, but they reuse the same `spamreporter.analysis` and `ReportBuilder` components delivered here.
+These modes require additional queueing, authentication, and error handling, but they reuse the same `spammy.analysis` and `ReportBuilder` components delivered here.
 
 ---
 

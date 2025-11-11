@@ -12,7 +12,7 @@ from .reporting import ReportBuilder
 
 def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="spamreporter",
+        prog="spammy",
         description="Analyze spam EML files, run RDAP lookups, and generate multilingual abuse reports.",
     )
     parser.add_argument(

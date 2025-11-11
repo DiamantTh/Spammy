@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-spamreporter = "spamreporter.cli:main"
+spammy = "spammy.cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -31,7 +31,7 @@ dev = [
 package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
-"spamreporter" = ["templates/*.j2"]
+"spammy" = ["templates/*.j2"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
