@@ -9,7 +9,7 @@ description = "Local spam analysis and multi-language abuse report generator"
 authors = [
   { name = "Local Admin" }
 ]
-license = { text = "MIT" }
+license = { text = "AGPL-3.0-or-later" }
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
