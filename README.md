@@ -13,16 +13,39 @@ Spammy is a self-hosted Python tool inspired by SpamCop. It ingests full EML/RFC
 
 ---
 
-## Installation
+## Installation (pipx empfohlen)
+
+[pipx](https://pipx.pypa.io/) installiert Spammy in ein isoliertes Virtualenv
+und legt eine ausführbare Datei unter `~/.local/bin/spammy` ab – perfekt für
+Systeme mit aktiviertem [PEP 668](https://peps.python.org/pep-0668/).
+
+```bash
+# einmalig sicherstellen, dass ~/.local/bin im PATH liegt
+pipx ensurepath
+
+# aus dem Repository-Root installieren
+pipx install --python python3 --editable .
+
+# bei späteren Updates
+pipx upgrade spammy
+```
+
+Damit stehen sowohl CLI als auch Abhängigkeiten unabhängig vom System-Python
+zur Verfügung.
+
+### Entwicklung (Editable-Install im Repo)
+
+Für lokale Entwicklung kannst du weiterhin ein klassisches Virtualenv nutzen:
 
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-pip install --upgrade pip
-pip install -e .
+python3 -m pip install --upgrade pip
+python3 -m pip install -e .
 ```
 
-The editable install exposes a `spammy` CLI (defined in `pyproject.toml`).
+Dieses Setup bietet dir `spammy` direkt aus dem Workspace (Hot-Reload beim Code
+Ändern).
 
 ---
 
@@ -82,14 +105,16 @@ Create your own files in `/etc/spammy/templates` (or similar) and reference them
    }
    ```
 
-2. Place an executable wrapper, e.g. `/usr/local/libexec/sieve-pipes/spammy.sh`:
+2. Place an executable wrapper, e.g. `/home/spammy/bin/spammy-sieve.sh`
+   (verweise dort direkt auf `~spammy/.local/bin/spammy` aus der pipx-Installation
+   oder auf ein dediziertes venv):
 
-   ```bash
-   #!/bin/sh
-   /usr/local/bin/spammy --stdout-format none \
+  ```bash
+  #!/bin/sh
+  ~spammy/.local/bin/spammy --stdout-format none \
      --output-html /var/spamreports/${SIEVE_MAILBOX}.html \
      --output-json /var/spamreports/${SIEVE_MAILBOX}.json
-   ```
+  ```
 
 3. In the user or global Sieve script:
 
@@ -107,7 +132,7 @@ The full EML (including attachments) reaches the CLI via stdin. Dovecot exports 
 - **Alias pipe** (`virtual_alias_maps`):
 
   ```
-  spammy@yourdomain.example  "|/usr/local/bin/spammy --stdout-format none --output-html /home/spammy/reports/latest.html"
+  spammy@yourdomain.example  "|~spammy/.local/bin/spammy --stdout-format none --output-html /home/spammy/reports/latest.html"
   ```
 
 - **Dedicated transport (`master.cf`)**:
@@ -115,7 +140,7 @@ The full EML (including attachments) reaches the CLI via stdin. Dovecot exports 
   ```
   spammy unix  -       n       n       -       -       pipe
     user=spammy
-    argv=/usr/local/bin/spammy --stdout-format json --output-json /home/spammy/reports/${recipient}.json
+    argv=~spammy/.local/bin/spammy --stdout-format json --output-json /home/spammy/reports/${recipient}.json
   ```
 
 Point suspicious messages (e.g. forwarded to `spammy@`) at the transport.
