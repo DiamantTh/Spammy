@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spammy"
+version = "0.1.0"
+description = "Local spam analysis and multi-language abuse report generator"
+authors = [
+  { name = "Local Admin" }
+]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "ipwhois>=1.2.0",
+  "requests>=2.31",
+  "jinja2>=3.1",
+]
+
+[project.scripts]
+spamreporter = "spamreporter.cli:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2",
+  "rich>=13.7",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.package-data]
+"spamreporter" = ["templates/*.j2"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

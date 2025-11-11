@@ -1,0 +1,27 @@
+Objet : Signalement de spam – {{ metadata.subject }}
+Expéditeur : {{ metadata.sender }}
+Destinataire : {{ metadata.recipient }}
+Date : {{ metadata.date or "inconnue" }}
+IP suspecte : {{ result.candidate_ip or "non déterminée" }}
+
+Bonjour,
+
+Veuillez trouver ci-joint un message non sollicité transmis par notre utilisateur. Nous vous invitons à vérifier le système émetteur et à bloquer tout trafic indésirable.
+
+Contacts recommandés :
+{% if contacts -%}
+{% for contact in contacts %}- {{ contact.address }} (confiance {{ "%0.0f"|format(contact.confidence * 100) }} %)
+{% endfor -%}
+{% else -%}
+- aucun
+{% endif %}
+
+Opérateur réseau : {{ (rdap.owner.name if rdap and rdap.owner else "inconnu") }}
+Registrar : {{ domain.registrar if domain and domain.registrar else "n/a" }}
+
+En-têtes clés :
+{% for key, value in metadata.headers.items() -%}
+- {{ key }}: {{ value }}
+{% endfor %}
+
+-- Fin du rapport --

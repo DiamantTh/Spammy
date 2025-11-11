@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Informe de abuso - {{ metadata.subject }}</title>
+  <style>
+    body { font-family: "Rubik", Arial, sans-serif; margin: 0; background: #f3f4f6; color: #111827; }
+    header { background: #2563eb; color: #fff; padding: 24px 32px; }
+    section { background: white; margin: 18px auto; padding: 24px 30px; max-width: 900px; border-radius: 12px; box-shadow: 0 8px 20px rgba(15,23,42,0.08); }
+    h2 { margin-top: 0; color: #1d4ed8; }
+    .pill { background: #dbeafe; color: #1d4ed8; padding: 4px 12px; border-radius: 999px; font-size: 0.85rem; }
+    ul { padding-left: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    pre { background: #0f172a; color: #f8fafc; padding: 14px; border-radius: 8px; overflow-x: auto; }
+    .card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Informe automático de spam</h1>
+    <p>Asunto: {{ metadata.subject }} • Idioma preferido: {{ result.preferred_language|upper }}</p>
+  </header>
+
+  <section>
+    <h2>Resumen operativo</h2>
+    <div class="card">
+      <span class="pill">IP origen</span>
+      <p style="font-size:1.3rem; margin:8px 0;">{{ result.candidate_ip or "Desconocida" }}</p>
+      {% if rdap and rdap.owner %}
+        <p>{{ rdap.owner.name or "Operador desconocido" }} ({{ rdap.owner.country or "s/d" }})</p>
+      {% endif %}
+    </div>
+    <div class="card">
+      <span class="pill">Remitente</span>
+      <p>{{ metadata.sender or "No disponible" }}</p>
+      {% if domain and domain.registrar %}<p>Registrador: {{ domain.registrar }}</p>{% endif %}
+    </div>
+    <div class="card">
+      <span class="pill">Contactos sugeridos</span>
+      {% if contacts %}
+        <ul>
+          {% for contact in contacts %}
+            <li>{{ contact.address }} (confianza {{ "%0.0f"|format(contact.confidence * 100) }} %)</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No se identificaron contactos de abuso.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section>
+    <h2>Mensaje a los operadores</h2>
+    <p>Estimado equipo,<br />
+    un usuario nos ha reenviado el spam adjunto. Les solicitamos verificar la cuenta o servidor implicado y bloquear el tráfico no deseado.</p>
+    <ul>
+      <li><strong>Fecha de recepción:</strong> {{ metadata.date or "sin datos" }}</li>
+      <li><strong>Destinatario local:</strong> {{ metadata.recipient or "sin datos" }}</li>
+      <li><strong>IP sospechosa:</strong> {{ result.candidate_ip or "no determinada" }}</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Cadena de Received</h2>
+    {% if result.received_hops %}
+      {% for hop in result.received_hops %}
+        <div class="card">
+          <p><strong>{{ loop.length - loop.index0 }}.</strong> {{ hop.raw }}</p>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>No se encontraron encabezados Received.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Encabezados relevantes</h2>
+    <pre>
+Subject: {{ metadata.subject }}
+From: {{ metadata.sender }}
+To: {{ metadata.recipient }}
+Message-ID: {{ metadata.message_id }}
+{{ result.metadata.headers | tojson(indent=2) }}
+    </pre>
+  </section>
+
+  <section>
+    <h2>Adjuntos</h2>
+    {% if result.attachments %}
+      <table>
+        <thead><tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th></tr></thead>
+        <tbody>
+          {% for attachment in result.attachments %}
+            <tr>
+              <td>{{ attachment.filename or "(sin nombre)" }}</td>
+              <td>{{ attachment.content_type }}</td>
+              <td>{{ attachment.size }} bytes</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>Sin adjuntos registrados.</p>
+    {% endif %}
+  </section>
+</body>
+</html>

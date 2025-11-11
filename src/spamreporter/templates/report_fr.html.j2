@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Rapport d'abus - {{ metadata.subject }}</title>
+  <style>
+    body { font-family: "Inter", Arial, sans-serif; background: #f4f6fb; margin: 0; color: #172b4d; }
+    header { background: #0065ff; color: white; padding: 24px 32px; }
+    section { background: #fff; margin: 20px auto; max-width: 900px; padding: 24px 32px; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+    h2 { margin-top: 0; color: #0747a6; }
+    .badge { background: #e6efff; color: #0747a6; border-radius: 999px; padding: 4px 12px; font-size: 0.85rem; display: inline-block; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px; border-bottom: 1px solid #e1e6f0; text-align: left; }
+    pre { background: #0e1624; color: #fff; padding: 14px; border-radius: 8px; overflow-x: auto; }
+    .card { border: 1px solid #e1e6f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Rapport local d'abus</h1>
+    <p>Objet : {{ metadata.subject }} • Langue : {{ result.preferred_language|upper }}</p>
+  </header>
+
+  <section>
+    <h2>Résumé</h2>
+    <div class="card">
+      <span class="badge">IP suspecte</span>
+      <p style="font-size:1.3rem; margin:8px 0;">{{ result.candidate_ip or "Inconnue" }}</p>
+      {% if rdap and rdap.owner %}
+        <p>{{ rdap.owner.name or "Opérateur inconnu" }} ({{ rdap.owner.country or "n/a" }})</p>
+      {% endif %}
+    </div>
+    <div class="card">
+      <span class="badge">Expéditeur</span>
+      <p>{{ metadata.sender or "Inconnu" }}</p>
+      {% if domain and domain.registrar %}<p>Registrar : {{ domain.registrar }}</p>{% endif %}
+    </div>
+    <div class="card">
+      <span class="badge">Contacts à prévenir</span>
+      {% if contacts %}
+        <ul>
+          {% for contact in contacts %}
+            <li>{{ contact.address }} ({{ "%0.0f"|format(contact.confidence * 100) }} %)</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Aucun contact spécialisé détecté.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section>
+    <h2>Message</h2>
+    <p>Bonjour,<br />
+    nous vous signalons un message non sollicité reçu par un de nos utilisateurs. Merci d'enquêter sur le système source et de prendre les mesures adéquates.</p>
+    <ul>
+      <li><strong>Date de réception :</strong> {{ metadata.date or "inconnue" }}</li>
+      <li><strong>Destinataire :</strong> {{ metadata.recipient or "inconnu" }}</li>
+      <li><strong>Adresse IP suspecte :</strong> {{ result.candidate_ip or "non déterminée" }}</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Chaîne Received</h2>
+    {% if result.received_hops %}
+      {% for hop in result.received_hops %}
+        <div class="card">
+          <p><strong>{{ loop.length - loop.index0 }}.</strong> {{ hop.raw }}</p>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>Aucun en-tête Received trouvé.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>En-têtes principaux</h2>
+    <pre>
+Subject: {{ metadata.subject }}
+From: {{ metadata.sender }}
+To: {{ metadata.recipient }}
+Message-ID: {{ metadata.message_id }}
+{{ result.metadata.headers | tojson(indent=2) }}
+    </pre>
+  </section>
+
+  <section>
+    <h2>Pièces jointes</h2>
+    {% if result.attachments %}
+      <table>
+        <thead><tr><th>Nom</th><th>Type</th><th>Taille</th></tr></thead>
+        <tbody>
+          {% for attachment in result.attachments %}
+            <tr>
+              <td>{{ attachment.filename or "(sans nom)" }}</td>
+              <td>{{ attachment.content_type }}</td>
+              <td>{{ attachment.size }} o</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>Aucune pièce jointe.</p>
+    {% endif %}
+  </section>
+</body>
+</html>

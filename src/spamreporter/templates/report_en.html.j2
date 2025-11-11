@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Spam Report - {{ metadata.subject }}</title>
+  <style>
+    body { font-family: "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 0; background: #f5f7fa; color: #1b1f23; }
+    header { background: #1f6feb; color: white; padding: 24px 32px; }
+    section { background: white; margin: 20px auto; padding: 24px 32px; max-width: 900px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+    h1 { margin: 0; font-size: 1.6rem; }
+    h2 { color: #0b3d91; margin-top: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    .card { border: 1px solid #e0e6ef; border-radius: 10px; padding: 16px; background: #fdfefe; }
+    .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #e1ecff; color: #0b3d91; font-size: 0.85rem; }
+    code, pre { background: #0d1117; color: #eaeef2; border-radius: 8px; padding: 12px; display: block; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e5e8ef; }
+    th { background: #f3f6fb; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Spam Report – {{ metadata.subject }}</h1>
+    <p>Generated {{ analysis.metadata.date or "just now" }} • Preferred language: {{ result.preferred_language|upper }}</p>
+  </header>
+
+  <section>
+    <h2>Summary</h2>
+    <div class="grid">
+      <div class="card">
+        <p class="pill">Origin IP</p>
+        <p style="font-size:1.4rem; margin:8px 0;">{{ result.candidate_ip or "Unknown" }}</p>
+        {% if rdap and rdap.owner and rdap.owner.name %}
+          <p>{{ rdap.owner.name }} ({{ rdap.owner.country or "n/a" }})</p>
+        {% endif %}
+      </div>
+      <div class="card">
+        <p class="pill">Sender</p>
+        <p style="font-size:1.2rem; margin:8px 0;">{{ metadata.sender or "Unknown" }}</p>
+        {% if domain and domain.registrar %}
+          <p>Registrar: {{ domain.registrar }}</p>
+        {% endif %}
+      </div>
+      <div class="card">
+        <p class="pill">Abuse contacts</p>
+        {% if contacts %}
+          <ul style="padding-left:18px; margin:8px 0;">
+            {% for contact in contacts %}
+              <li>{{ contact.address }} ({{ "%0.0f"|format(contact.confidence * 100) }}%)</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>No dedicated abuse contact detected.</p>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Actionable details</h2>
+    <p>Dear network operator, our user forwarded the below spam sample. Please investigate the sender system and stop further distribution.</p>
+    <ul>
+      <li><strong>Date received:</strong> {{ metadata.date or "unknown" }}</li>
+      <li><strong>Envelope recipient:</strong> {{ metadata.recipient or "unknown" }}</li>
+      <li><strong>Origin candidate:</strong> {{ result.candidate_ip or "unknown" }}{% if rdap and rdap.owner %} – {{ rdap.owner.name or "" }}{% endif %}</li>
+      <li><strong>Abuse contacts to notify:</strong> {% if contacts %}{{ contacts | map(attribute="address") | join(", ") }}{% else %}none detected{% endif %}</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Received chain</h2>
+    {% for hop in result.received_hops %}
+      <div class="card" style="margin-bottom:12px;">
+        <p><strong>{{ loop.length - loop.index0 }}.</strong> {{ hop.raw }}</p>
+      </div>
+    {% else %}
+      <p>No Received headers were found.</p>
+    {% endfor %}
+  </section>
+
+  <section>
+    <h2>Original headers excerpt</h2>
+    <pre>
+Subject: {{ metadata.subject }}
+From: {{ metadata.sender }}
+To: {{ metadata.recipient }}
+Message-ID: {{ metadata.message_id }}
+{{ result.metadata.headers | tojson(indent=2) }}
+    </pre>
+  </section>
+
+  <section>
+    <h2>Attachments</h2>
+    {% if result.attachments %}
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Content-Type</th><th>Size (bytes)</th></tr>
+        </thead>
+        <tbody>
+          {% for attachment in result.attachments %}
+            <tr>
+              <td>{{ attachment.filename or "(unnamed)" }}</td>
+              <td>{{ attachment.content_type }}</td>
+              <td>{{ attachment.size }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No attachments detected.</p>
+    {% endif %}
+  </section>
+</body>
+</html>

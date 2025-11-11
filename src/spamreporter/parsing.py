@@ -1,0 +1,140 @@
+from __future__ import annotations
+
+import ipaddress
+import re
+from datetime import datetime
+from email import policy
+from email.message import EmailMessage
+from email.parser import BytesParser
+from email.utils import parsedate_to_datetime, parsedate_to_datetime as parse_email_date, parseaddr
+from typing import List, Optional
+
+from .models import AttachmentSummary, ReceivedHop, SpamMetadata
+
+IPV4_RE = re.compile(r"(?:\d{1,3}\.){3}\d{1,3}")
+IPV6_RE = re.compile(r"\b([0-9a-f:]{3,})\b", re.IGNORECASE)
+HOST_RE = re.compile(r"from\s+([^\s;]+)", re.IGNORECASE)
+
+
+def load_message(data: bytes) -> EmailMessage:
+    """Parse raw RFC822 bytes into EmailMessage with default policy."""
+
+    parser = BytesParser(policy=policy.default)
+    return parser.parsebytes(data)
+
+
+def extract_inner_message(message: EmailMessage) -> Optional[EmailMessage]:
+    """
+    If the message contains a nested message/rfc822 part (common for
+    forwarded spam attachments), return the first such part.
+    """
+
+    for part in message.walk():
+        if part.get_content_type() == "message/rfc822":
+            payload = part.get_payload(0)
+            if isinstance(payload, EmailMessage):
+                return payload
+    return None
+
+
+def metadata_from_message(message: EmailMessage) -> SpamMetadata:
+    headers = {
+        key: message.get(key, "")
+        for key in ["Subject", "From", "To", "Date", "Message-ID", "Return-Path", "Received-SPF"]
+        if message.get(key) is not None
+    }
+
+    sender = parseaddr(message.get("From", ""))[1] or message.get("From", "")
+    recipient = parseaddr(message.get("To", ""))[1] or message.get("To", "")
+    date_header = message.get("Date")
+    date = parsedate_to_datetime(date_header) if date_header else None
+
+    return SpamMetadata(
+        subject=message.get("Subject", "(no subject)"),
+        sender=sender,
+        recipient=recipient,
+        date=date,
+        message_id=message.get("Message-ID"),
+        headers=headers,
+    )
+
+
+def _parse_received_timestamp(raw_header: str) -> Optional[datetime]:
+    if ";" not in raw_header:
+        return None
+    ts = raw_header.split(";")[-1].strip()
+    try:
+        return parse_email_date(ts)
+    except (ValueError, TypeError):
+        return None
+
+
+def _extract_ip(raw_header: str) -> Optional[str]:
+    match = IPV4_RE.search(raw_header)
+    if match:
+        return match.group(0)
+
+    match = IPV6_RE.search(raw_header)
+    if match:
+        value = match.group(1)
+        # Remove enclosing brackets if present
+        value = value.strip("[]")
+        try:
+            ipaddress.ip_address(value)
+            return value
+        except ValueError:
+            return None
+    return None
+
+
+def _extract_hostname(raw_header: str) -> Optional[str]:
+    match = HOST_RE.search(raw_header)
+    if match:
+        host = match.group(1)
+        return host.strip("()")
+    return None
+
+
+def collect_received_hops(message: EmailMessage) -> List[ReceivedHop]:
+    headers = message.get_all("Received", [])
+    hops: List[ReceivedHop] = []
+    for entry in headers:
+        ip = _extract_ip(entry)
+        hostname = _extract_hostname(entry)
+        timestamp = _parse_received_timestamp(entry)
+        hops.append(ReceivedHop(raw=entry, ip=ip, hostname=hostname, timestamp=timestamp))
+    return hops
+
+
+def _is_public_ip(ip: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(ip)
+        return not (addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_multicast)
+    except ValueError:
+        return False
+
+
+def guess_origin_ip(hops: List[ReceivedHop]) -> Optional[str]:
+    """
+    Attempt to identify the first hop outside the local infrastructure by
+    scanning Received headers from oldest to newest.
+    """
+
+    for hop in reversed(hops):
+        if hop.ip and _is_public_ip(hop.ip):
+            return hop.ip
+    return None
+
+
+def summarize_attachments(message: EmailMessage) -> List[AttachmentSummary]:
+    attachments: List[AttachmentSummary] = []
+    for part in message.iter_attachments():
+        payload = part.get_payload(decode=True) or b""
+        attachments.append(
+            AttachmentSummary(
+                filename=part.get_filename(),
+                content_type=part.get_content_type(),
+                size=len(payload),
+            )
+        )
+    return attachments

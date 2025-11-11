@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <title>Spam-Meldung - {{ metadata.subject }}</title>
+  <style>
+    body { font-family: "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background: #f5f5f5; color: #0f1115; }
+    header { background: #0f62fe; color: #fff; padding: 24px 32px; }
+    section { background: white; margin: 20px auto; padding: 24px 32px; max-width: 900px; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+    h1 { margin: 0; }
+    h2 { color: #0f62fe; }
+    ul { padding-left: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e0e0e0; }
+    th { background: #f2f4f8; }
+    .chip { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #dde1ff; color: #0f2a6b; font-size: 0.85rem; }
+    pre { background: #111; color: #eee; padding: 12px; border-radius: 8px; overflow-x: auto; }
+    .card { border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Spam-Analyse für „{{ metadata.subject }}“</h1>
+    <p>Erstellt am {{ analysis.metadata.date or "heute" }} • Vorzugssprache: {{ result.preferred_language|upper }}</p>
+  </header>
+
+  <section>
+    <h2>Kurzübersicht</h2>
+    <div class="card">
+      <span class="chip">Ursprungs-IP</span>
+      <p style="font-size:1.3rem; margin:8px 0;">{{ result.candidate_ip or "Unbekannt" }}</p>
+      {% if rdap and rdap.owner %}
+        <p>{{ rdap.owner.name or "Unbekannter Betreiber" }} ({{ rdap.owner.country or "n/a" }})</p>
+      {% endif %}
+    </div>
+    <div class="card">
+      <span class="chip">Absender</span>
+      <p>{{ metadata.sender or "Unbekannt" }}</p>
+      {% if domain and domain.registrar %}<p>Registrar: {{ domain.registrar }}</p>{% endif %}
+    </div>
+    <div class="card">
+      <span class="chip">Abuse-Kontakte</span>
+      {% if contacts %}
+        <ul>
+          {% for contact in contacts %}
+            <li>{{ contact.address }} ({{ "%0.0f"|format(contact.confidence * 100) }} %)</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Kein spezieller Kontakt gefunden.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section>
+    <h2>Anschreiben</h2>
+    <p>Sehr geehrte Damen und Herren,<br />
+    hiermit melden wir eine unerwünschte E-Mail, die über Ihr Netz versandt wurde. Bitte prüfen Sie das betroffene System und verhindern Sie weitere Aussendungen.</p>
+    <ul>
+      <li><strong>Eingang beim Nutzer:</strong> {{ metadata.date or "unbekannt" }}</li>
+      <li><strong>Betreff:</strong> {{ metadata.subject }}</li>
+      <li><strong>Empfänger:</strong> {{ metadata.recipient or "unbekannt" }}</li>
+      <li><strong>Mutmaßlicher Ursprung:</strong> {{ result.candidate_ip or "unbekannt" }}</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Received-Kette</h2>
+    {% if result.received_hops %}
+      {% for hop in result.received_hops %}
+        <div class="card">
+          <p><strong>{{ loop.length - loop.index0 }}.</strong> {{ hop.raw }}</p>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>Keine Received-Header vorhanden.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Header-Auszug</h2>
+    <pre>
+Subject: {{ metadata.subject }}
+From: {{ metadata.sender }}
+To: {{ metadata.recipient }}
+Message-ID: {{ metadata.message_id }}
+{{ result.metadata.headers | tojson(indent=2) }}
+    </pre>
+  </section>
+
+  <section>
+    <h2>Anhänge</h2>
+    {% if result.attachments %}
+      <table>
+        <thead><tr><th>Dateiname</th><th>Typ</th><th>Größe</th></tr></thead>
+        <tbody>
+          {% for attachment in result.attachments %}
+            <tr>
+              <td>{{ attachment.filename or "(kein Name)" }}</td>
+              <td>{{ attachment.content_type }}</td>
+              <td>{{ attachment.size }} B</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>Keine Anhänge erkannt.</p>
+    {% endif %}
+  </section>
+</body>
+</html>

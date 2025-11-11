@@ -1,0 +1,27 @@
+Asunto: Reporte de spam - {{ metadata.subject }}
+Remitente: {{ metadata.sender }}
+Destinatario: {{ metadata.recipient }}
+Fecha: {{ metadata.date or "sin datos" }}
+IP sospechosa: {{ result.candidate_ip or "no determinada" }}
+
+Hola,
+
+Compartimos el spam recibido por nuestro usuario para que investiguen el origen y bloqueen nuevos envíos.
+
+Contactos sugeridos:
+{% if contacts -%}
+{% for contact in contacts %}- {{ contact.address }} (confianza {{ "%0.0f"|format(contact.confidence * 100) }} %)
+{% endfor -%}
+{% else -%}
+- ninguno
+{% endif %}
+
+Operador de red: {{ (rdap.owner.name if rdap and rdap.owner else "desconocido") }}
+Registrador: {{ domain.registrar if domain and domain.registrar else "s/d" }}
+
+Encabezados relevantes:
+{% for key, value in metadata.headers.items() -%}
+- {{ key }}: {{ value }}
+{% endfor %}
+
+-- Fin del informe --
