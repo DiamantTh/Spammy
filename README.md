@@ -107,18 +107,18 @@ The full EML (including attachments) reaches the CLI via stdin. Dovecot exports 
 - **Alias pipe** (`virtual_alias_maps`):
 
   ```
-  spamreport@yourdomain.example  "|/usr/local/bin/spammy --stdout-format none --output-html /var/spamreports/latest.html"
+  spammy@yourdomain.example  "|/usr/local/bin/spammy --stdout-format none --output-html /home/spammy/reports/latest.html"
   ```
 
 - **Dedicated transport (`master.cf`)**:
 
   ```
-  spamreport unix  -       n       n       -       -       pipe
-    user=spam reporter
-    argv=/usr/local/bin/spammy --stdout-format json --output-json /var/spamreports/${recipient}.json
+  spammy unix  -       n       n       -       -       pipe
+    user=spammy
+    argv=/usr/local/bin/spammy --stdout-format json --output-json /home/spammy/reports/${recipient}.json
   ```
 
-Point suspicious messages (e.g. forwarded to `spamreport@`) at the transport.
+Point suspicious messages (e.g. forwarded to `spammy@`) at the transport.
 
 ---
 
