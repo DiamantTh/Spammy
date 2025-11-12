@@ -218,6 +218,8 @@ class RDAPClient:
         entities = payload.get("entities")
         if isinstance(entities, list):
             for entity in entities:
+                if not isinstance(entity, dict):
+                    continue
                 roles = [
                     role.lower() if isinstance(role, str) else str(role).lower()
                     for role in entity.get("roles", [])
