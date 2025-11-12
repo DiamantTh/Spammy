@@ -16,11 +16,12 @@ Spammy is a self-hosted Python tool inspired by SpamCop. It ingests full EML/RFC
 
 ## Dokumentation
 
-- `doc/installation.md` – beschreibt pipx-basierte Installationen, lokale
-  virtuellen Umgebungen und Benutzer-Installs.
-- `doc/database_setup.md` – liefert Beispiele für das Anlegen von Datenbanken
-  und Benutzern (PostgreSQL, MariaDB/MySQL, SQL Server) inkl. UTF‑8-Hinweisen.
-- `doc/database_schema.sql` – Referenz-Tabellen (messages, analyses,
+- [Installation](doc/installation.md) – Schritte für pipx, virtuelle Umgebungen
+  und Benutzer-Installs.
+- [Database Setup](doc/database_setup.md) – Beispiele für das Anlegen von
+  Datenbanken und Benutzern (PostgreSQL, MariaDB/MySQL, SQL Server) inkl.
+  UTF‑8-Hinweisen.
+- [Schéma SQL](doc/database_schema.sql) – Referenz-Tabellen (messages, analyses,
   abuse_contacts) inklusive Indexvorschlägen für spätere Auswertungen.
 
 ## Konfiguration
