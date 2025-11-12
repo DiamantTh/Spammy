@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spammy"
-version = "1762987066"
+version = "1762987659"
 description = "Local spam analysis and multi-language abuse report generator"
 authors = [
   { name = "Local Admin" }
