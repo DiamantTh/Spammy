@@ -182,6 +182,11 @@ def _build_records(result):
 
 
 def _print_summary(result, rdap_base: str) -> None:
+    header_lines = "\n".join(result.metadata.raw_headers)
+    print("=== Full header ===")
+    print(header_lines)
+    print()
+
     rdap_owner = (
         result.rdap_record.owner.name
         if result.rdap_record and result.rdap_record.owner and result.rdap_record.owner.name
@@ -189,22 +194,58 @@ def _print_summary(result, rdap_base: str) -> None:
     )
     registrar = result.domain_record.registrar if result.domain_record else "n/a"
     domain = result.domain_record.domain if result.domain_record else "n/a"
-    contacts = ", ".join(c.address for c in result.abuse_contacts) or "none"
+
+    print("=== Header analysis ===")
+    print(f"Subject          : {result.metadata.subject}")
+    print(f"Sender           : {result.metadata.sender}")
+    print(f"Recipient        : {result.metadata.recipient}")
+    print(f"Candidate IP     : {result.candidate_ip or 'unknown'}")
+    print(f"RDAP IP lookup   : {rdap_base} -> {rdap_owner}")
+    print(f"RDAP domain      : {domain} (registrar {registrar})")
+    if result.received_hops:
+        print("Received hops    :")
+        for hop in result.received_hops:
+            print(f"  - {hop.raw}")
+    else:
+        print("Received hops    : none")
+    print()
+
+    indicators = result.body_indicators
+    print("=== Body analysis ===")
+    if indicators.urls:
+        print("URLs:")
+        for url in indicators.urls:
+            print(f"  - {url}")
+    else:
+        print("URLs: none")
+    if indicators.domains:
+        print("Domains:")
+        for dom in indicators.domains:
+            print(f"  - {dom}")
+    else:
+        print("Domains: none")
+    if indicators.ips:
+        print("IPs:")
+        for ip in indicators.ips:
+            print(f"  - {ip}")
+    else:
+        print("IPs: none")
+    print()
+
     auth = result.auth_summary
-    print(
-        "=== Spammy Analysis Summary ===\n"
-        f"Subject       : {result.metadata.subject}\n"
-        f"Sender        : {result.metadata.sender}\n"
-        f"Recipient     : {result.metadata.recipient}\n"
-        f"Origin IP     : {result.candidate_ip or 'unknown'}\n"
-        f"Attachments   : {len(result.attachments)}\n"
-        f"RDAP IP check : {rdap_base} -> owner {rdap_owner}\n"
-        f"RDAP domain   : {domain} (registrar {registrar})\n"
-        f"SPF           : {auth.spf.result or 'unknown'} ({auth.spf.identity or auth.spf.detail or 'n/a'})\n"
-        f"DKIM          : {auth.dkim.result or 'unknown'} ({auth.dkim.identity or auth.dkim.detail or 'n/a'})\n"
-        f"DMARC         : {auth.dmarc.result or 'unknown'} ({auth.dmarc.identity or auth.dmarc.detail or 'n/a'})\n"
-        f"Contacts      : {contacts}\n"
-    )
+    print("=== Authentication ===")
+    print(f"SPF  : {auth.spf.result or 'unknown'} ({auth.spf.identity or auth.spf.detail or 'n/a'})")
+    print(f"DKIM : {auth.dkim.result or 'unknown'} ({auth.dkim.identity or auth.dkim.detail or 'n/a'})")
+    print(f"DMARC: {auth.dmarc.result or 'unknown'} ({auth.dmarc.identity or auth.dmarc.detail or 'n/a'})")
+    print()
+
+    if result.abuse_contacts:
+        print("=== Abuse contacts ===")
+        for contact in result.abuse_contacts:
+            print(f"- {contact.address} ({int(contact.confidence * 100)}%)")
+    else:
+        print("=== Abuse contacts ===")
+        print("No contacts discovered.")
 
 
 def _maybe_confirm_stdout(format_choice: str, auto_stdout: bool) -> str:

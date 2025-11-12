@@ -1,32 +1,59 @@
-Asunto: Reporte de spam - {{ metadata.subject }}
-Remitente: {{ metadata.sender }}
-Destinatario: {{ metadata.recipient }}
-Fecha: {{ metadata.date or "sin datos" }}
-IP sospechosa: {{ result.candidate_ip or "no determinada" }}
+=== Encabezados completos ===
+{% for line in metadata.raw_headers -%}
+{{ line }}
+{% endfor %}
 
-Hola,
+=== Análisis de encabezados ===
+Asunto        : {{ metadata.subject }}
+Remitente     : {{ metadata.sender }}
+Destinatario  : {{ metadata.recipient }}
+Fecha         : {{ metadata.date or "sin datos" }}
+IP sospechosa : {{ result.candidate_ip or "no determinada" }}
+Operador      : {{ (rdap.owner.name if rdap and rdap.owner else "desconocido") }}
+Registrador   : {{ domain.registrar if domain and domain.registrar else "s/d" }}
 
-Compartimos el spam recibido por nuestro usuario para que investiguen el origen y bloqueen nuevos envíos.
+Cadena Received:
+{% if result.received_hops -%}
+{% for hop in result.received_hops %}- {{ hop.raw }}
+{% endfor -%}
+{% else -%}
+- ninguna
+{% endif %}
 
-Contactos sugeridos:
+=== Análisis del cuerpo ===
+URLs:
+{% if result.body_indicators.urls -%}
+{% for url in result.body_indicators.urls %}- {{ url }}
+{% endfor -%}
+{% else -%}
+- ninguna
+{% endif %}
+
+Dominios:
+{% if result.body_indicators.domains -%}
+{% for dom in result.body_indicators.domains %}- {{ dom }}
+{% endfor -%}
+{% else -%}
+- ninguno
+{% endif %}
+
+IPs:
+{% if result.body_indicators.ips -%}
+{% for ip in result.body_indicators.ips %}- {{ ip }}
+{% endfor -%}
+{% else -%}
+- ninguna
+{% endif %}
+
+=== Autenticación ===
+SPF  : {{ result.auth_summary.spf.result or "desconocido" }} ({{ result.auth_summary.spf.identity or result.auth_summary.spf.detail or "n/d" }})
+DKIM : {{ result.auth_summary.dkim.result or "desconocido" }} ({{ result.auth_summary.dkim.identity or result.auth_summary.dkim.detail or "n/d" }})
+DMARC: {{ result.auth_summary.dmarc.result or "desconocido" }} ({{ result.auth_summary.dmarc.identity or result.auth_summary.dmarc.detail or "n/d" }})
+
+=== Contactos sugeridos ===
 {% if contacts -%}
 {% for contact in contacts %}- {{ contact.address }} (confianza {{ "%0.0f"|format(contact.confidence * 100) }} %)
 {% endfor -%}
 {% else -%}
 - ninguno
 {% endif %}
-
-Operador de red: {{ (rdap.owner.name if rdap and rdap.owner else "desconocido") }}
-Registrador: {{ domain.registrar if domain and domain.registrar else "s/d" }}
-
-Resumen de autenticación:
-- SPF: {{ result.auth_summary.spf.result or "desconocido" }} ({{ result.auth_summary.spf.identity or result.auth_summary.spf.detail or "n/d" }})
-- DKIM: {{ result.auth_summary.dkim.result or "desconocido" }} ({{ result.auth_summary.dkim.identity or result.auth_summary.dkim.detail or "n/d" }})
-- DMARC: {{ result.auth_summary.dmarc.result or "desconocido" }} ({{ result.auth_summary.dmarc.identity or result.auth_summary.dmarc.detail or "n/d" }})
-
-Encabezados relevantes:
-{% for key, value in metadata.headers.items() -%}
-- {{ key }}: {{ value }}
-{% endfor %}
-
--- Fin del informe --

@@ -7,9 +7,16 @@ from email import policy
 from email.message import EmailMessage
 from email.parser import BytesParser
 from email.utils import parsedate_to_datetime, parsedate_to_datetime as parse_email_date, parseaddr
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
-from .models import AttachmentSummary, AuthStatus, AuthSummary, ReceivedHop, SpamMetadata
+from .models import (
+    AttachmentSummary,
+    AuthStatus,
+    AuthSummary,
+    BodyIndicators,
+    ReceivedHop,
+    SpamMetadata,
+)
 
 IPV4_RE = re.compile(r"(?:\d{1,3}\.){3}\d{1,3}")
 IPV6_RE = re.compile(r"\b([0-9a-f:]{3,})\b", re.IGNORECASE)
@@ -43,6 +50,7 @@ def metadata_from_message(message: EmailMessage) -> SpamMetadata:
         for key in ["Subject", "From", "To", "Date", "Message-ID", "Return-Path", "Received-SPF"]
         if message.get(key) is not None
     }
+    raw_headers = [f"{k}: {v}" for (k, v) in message.items()]
 
     sender = parseaddr(message.get("From", ""))[1] or message.get("From", "")
     recipient = parseaddr(message.get("To", ""))[1] or message.get("To", "")
@@ -56,6 +64,7 @@ def metadata_from_message(message: EmailMessage) -> SpamMetadata:
         date=date,
         message_id=message.get("Message-ID"),
         headers=headers,
+        raw_headers=raw_headers,
     )
 
 
@@ -138,6 +147,44 @@ def summarize_attachments(message: EmailMessage) -> List[AttachmentSummary]:
             )
         )
     return attachments
+
+
+URL_RE = re.compile(r"https?://[^\s>]+", re.IGNORECASE)
+DOMAIN_RE = re.compile(r"\b([a-z0-9][a-z0-9-]{1,63}\.)+(?:[a-z]{2,})\b", re.IGNORECASE)
+BODY_IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+
+
+def extract_body_indicators(message: EmailMessage) -> BodyIndicators:
+    text_chunks: List[str] = []
+    for part in message.walk():
+        if part.get_content_maintype() == "multipart":
+            continue
+        content_type = part.get_content_type()
+        if content_type in {"text/plain", "text/html"}:
+            try:
+                payload = part.get_payload(decode=True)
+                if payload:
+                    text_chunks.append(payload.decode(part.get_content_charset() or "utf-8", errors="replace"))
+            except Exception:  # pragma: no cover - defensive
+                continue
+    blob = "\n".join(text_chunks)
+    urls = sorted(set(URL_RE.findall(blob)))
+    domains = sorted(set(_normalize_domain(match.group(0)) for match in DOMAIN_RE.finditer(blob)))
+    ips = sorted(set(filter(_is_public_ip_text, BODY_IPV4_RE.findall(blob))))
+    return BodyIndicators(urls=urls, domains=domains, ips=ips)
+
+
+def _normalize_domain(domain: str) -> str:
+    value = domain.lower().strip().strip(".")
+    return value
+
+
+def _is_public_ip_text(ip: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(ip)
+        return addr.version == 4 and not (addr.is_private or addr.is_loopback or addr.is_multicast)
+    except ValueError:
+        return False
 
 
 def parse_authentication_summary(message: EmailMessage) -> AuthSummary:

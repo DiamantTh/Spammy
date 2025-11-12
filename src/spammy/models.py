@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from email.message import EmailMessage
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 
 @dataclass
@@ -67,6 +67,7 @@ class SpamMetadata:
     date: Optional[datetime]
     message_id: Optional[str]
     headers: Dict[str, str]
+    raw_headers: Sequence[str]
 
 
 @dataclass
@@ -91,6 +92,13 @@ class AuthSummary:
 
 
 @dataclass
+class BodyIndicators:
+    urls: List[str] = field(default_factory=list)
+    domains: List[str] = field(default_factory=list)
+    ips: List[str] = field(default_factory=list)
+
+
+@dataclass
 class AnalysisResult:
     """Complete analysis payload consumed by reporters."""
 
@@ -105,6 +113,7 @@ class AnalysisResult:
     original_message: EmailMessage
     inner_message: Optional[EmailMessage] = None
     auth_summary: AuthSummary = field(default_factory=AuthSummary)
+    body_indicators: BodyIndicators = field(default_factory=BodyIndicators)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize the result for JSON output."""
@@ -127,6 +136,7 @@ class AnalysisResult:
                 "date": self.metadata.date.isoformat() if self.metadata.date else None,
                 "message_id": self.metadata.message_id,
                 "headers": self.metadata.headers,
+                "raw_headers": list(self.metadata.raw_headers),
             },
             "received_hops": [
                 {
@@ -169,6 +179,11 @@ class AnalysisResult:
                 "spf": self._auth_status_dict(self.auth_summary.spf),
                 "dkim": self._auth_status_dict(self.auth_summary.dkim),
                 "dmarc": self._auth_status_dict(self.auth_summary.dmarc),
+            },
+            "body_indicators": {
+                "urls": self.body_indicators.urls,
+                "domains": self.body_indicators.domains,
+                "ips": self.body_indicators.ips,
             },
         }
 

@@ -5,6 +5,7 @@ from typing import List, Optional
 from .models import AbuseContact, AnalysisResult, AttachmentSummary, DomainRecord, RDAPRecord, SpamMetadata
 from .parsing import (
     collect_received_hops,
+    extract_body_indicators,
     extract_inner_message,
     guess_origin_ip,
     load_message,
@@ -78,6 +79,7 @@ def analyze_message(raw_data: bytes, rdap_client: Optional[RDAPClient] = None) -
     received_hops = collect_received_hops(inner_message)
     candidate_ip = guess_origin_ip(received_hops)
     attachments = summarize_attachments(inner_message)
+    body_indicators = extract_body_indicators(inner_message)
     auth_summary = parse_authentication_summary(inner_message)
 
     rdap_record = client.lookup_ip(candidate_ip)
@@ -109,4 +111,5 @@ def analyze_message(raw_data: bytes, rdap_client: Optional[RDAPClient] = None) -
         original_message=outer_message,
         inner_message=inner_message if inner_message is not outer_message else None,
         auth_summary=auth_summary,
+        body_indicators=body_indicators,
     )

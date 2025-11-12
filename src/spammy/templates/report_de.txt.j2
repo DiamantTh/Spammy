@@ -1,32 +1,59 @@
-Betreff: Spam-Meldung zu {{ metadata.subject }}
-Absender: {{ metadata.sender }}
-Empfänger: {{ metadata.recipient }}
-Eingang: {{ metadata.date or "unbekannt" }}
-Vermutete IP: {{ result.candidate_ip or "unbekannt" }}
+=== Vollständiger Header ===
+{% for line in metadata.raw_headers -%}
+{{ line }}
+{% endfor %}
 
-Sehr geehrte Damen und Herren,
+=== Kopfzeilenanalyse ===
+Betreff        : {{ metadata.subject }}
+Absender       : {{ metadata.sender }}
+Empfänger      : {{ metadata.recipient }}
+Empfangszeit   : {{ metadata.date or "unbekannt" }}
+Mutmaßliche IP : {{ result.candidate_ip or "unbekannt" }}
+Netzbetreiber  : {{ (rdap.owner.name if rdap and rdap.owner else "unbekannt") }}
+Registrar      : {{ domain.registrar if domain and domain.registrar else "k. A." }}
 
-ein Nutzer hat uns die beigefügte Spam-Mail weitergeleitet. Bitte prüfen Sie das betroffene System und unterbinden Sie weitere Aussendungen.
+Received-Kette:
+{% if result.received_hops -%}
+{% for hop in result.received_hops %}- {{ hop.raw }}
+{% endfor -%}
+{% else -%}
+- keine
+{% endif %}
 
-Vorgeschlagene Abuse-Kontakte:
+=== Body-Analyse ===
+URLs:
+{% if result.body_indicators.urls -%}
+{% for url in result.body_indicators.urls %}- {{ url }}
+{% endfor -%}
+{% else -%}
+- keine
+{% endif %}
+
+Domains:
+{% if result.body_indicators.domains -%}
+{% for dom in result.body_indicators.domains %}- {{ dom }}
+{% endfor -%}
+{% else -%}
+- keine
+{% endif %}
+
+IPs:
+{% if result.body_indicators.ips -%}
+{% for ip in result.body_indicators.ips %}- {{ ip }}
+{% endfor -%}
+{% else -%}
+- keine
+{% endif %}
+
+=== Authentifizierung ===
+SPF  : {{ result.auth_summary.spf.result or "unbekannt" }} ({{ result.auth_summary.spf.identity or result.auth_summary.spf.detail or "n/v" }})
+DKIM : {{ result.auth_summary.dkim.result or "unbekannt" }} ({{ result.auth_summary.dkim.identity or result.auth_summary.dkim.detail or "n/v" }})
+DMARC: {{ result.auth_summary.dmarc.result or "unbekannt" }} ({{ result.auth_summary.dmarc.identity or result.auth_summary.dmarc.detail or "n/v" }})
+
+=== Abuse-Kontakte ===
 {% if contacts -%}
 {% for contact in contacts %}- {{ contact.address }} (Vertrauen {{ "%0.0f"|format(contact.confidence * 100) }} %)
 {% endfor -%}
 {% else -%}
 - keine ermittelt
 {% endif %}
-
-Netzbetreiber: {{ (rdap.owner.name if rdap and rdap.owner else "unbekannt") }}
-Registrar: {{ domain.registrar if domain and domain.registrar else "k. A." }}
-
-Authentifizierungsstatus:
-- SPF: {{ result.auth_summary.spf.result or "unbekannt" }} ({{ result.auth_summary.spf.identity or result.auth_summary.spf.detail or "n/v" }})
-- DKIM: {{ result.auth_summary.dkim.result or "unbekannt" }} ({{ result.auth_summary.dkim.identity or result.auth_summary.dkim.detail or "n/v" }})
-- DMARC: {{ result.auth_summary.dmarc.result or "unbekannt" }} ({{ result.auth_summary.dmarc.identity or result.auth_summary.dmarc.detail or "n/v" }})
-
-Relevante Header:
-{% for key, value in metadata.headers.items() -%}
-- {{ key }}: {{ value }}
-{% endfor %}
-
--- Ende des Berichts --

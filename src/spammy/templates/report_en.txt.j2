@@ -1,32 +1,59 @@
-Subject: Spam report for {{ metadata.subject }}
-From: {{ metadata.sender }}
-To: {{ metadata.recipient }}
-Date observed: {{ metadata.date or "unknown" }}
-Origin IP: {{ result.candidate_ip or "unknown" }}
+=== Full header ===
+{% for line in metadata.raw_headers -%}
+{{ line }}
+{% endfor %}
 
-Hello,
+=== Header analysis ===
+Subject       : {{ metadata.subject }}
+From          : {{ metadata.sender }}
+To            : {{ metadata.recipient }}
+Date observed : {{ metadata.date or "unknown" }}
+Origin IP     : {{ result.candidate_ip or "unknown" }}
+Network owner : {{ rdap.owner.name if rdap and rdap.owner else "unknown" }}
+Registrar     : {{ domain.registrar if domain and domain.registrar else "n/a" }}
 
-We received the attached unsolicited message. Please investigate the sender system and prevent further transmissions.
+Received chain:
+{% if result.received_hops -%}
+{% for hop in result.received_hops %}- {{ hop.raw }}
+{% endfor -%}
+{% else -%}
+- none
+{% endif %}
 
-Suggested abuse contacts:
+=== Body analysis ===
+URLs:
+{% if result.body_indicators.urls -%}
+{% for url in result.body_indicators.urls %}- {{ url }}
+{% endfor -%}
+{% else -%}
+- none
+{% endif %}
+
+Domains:
+{% if result.body_indicators.domains -%}
+{% for dom in result.body_indicators.domains %}- {{ dom }}
+{% endfor -%}
+{% else -%}
+- none
+{% endif %}
+
+IPs:
+{% if result.body_indicators.ips -%}
+{% for ip in result.body_indicators.ips %}- {{ ip }}
+{% endfor -%}
+{% else -%}
+- none
+{% endif %}
+
+=== Authentication ===
+SPF  : {{ result.auth_summary.spf.result or "unknown" }} ({{ result.auth_summary.spf.identity or result.auth_summary.spf.detail or "n/a" }})
+DKIM : {{ result.auth_summary.dkim.result or "unknown" }} ({{ result.auth_summary.dkim.identity or result.auth_summary.dkim.detail or "n/a" }})
+DMARC: {{ result.auth_summary.dmarc.result or "unknown" }} ({{ result.auth_summary.dmarc.identity or result.auth_summary.dmarc.detail or "n/a" }})
+
+=== Abuse contacts ===
 {% if contacts -%}
 {% for contact in contacts %}- {{ contact.address }} (confidence {{ "%0.0f"|format(contact.confidence * 100) }} %)
 {% endfor -%}
 {% else -%}
 - none detected
 {% endif %}
-
-Network owner: {{ (rdap.owner.name if rdap and rdap.owner else "unknown") }}
-Registrar: {{ domain.registrar if domain and domain.registrar else "n/a" }}
-
-Authentication summary:
-- SPF: {{ result.auth_summary.spf.result or "unknown" }} ({{ result.auth_summary.spf.identity or result.auth_summary.spf.detail or "n/a" }})
-- DKIM: {{ result.auth_summary.dkim.result or "unknown" }} ({{ result.auth_summary.dkim.identity or result.auth_summary.dkim.detail or "n/a" }})
-- DMARC: {{ result.auth_summary.dmarc.result or "unknown" }} ({{ result.auth_summary.dmarc.identity or result.auth_summary.dmarc.detail or "n/a" }})
-
-Key headers:
-{% for key, value in metadata.headers.items() -%}
-- {{ key }}: {{ value }}
-{% endfor %}
-
--- End of report --
