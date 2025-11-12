@@ -11,4 +11,4 @@ __all__ = [
     "ReportBuilder",
 ]
 
-__version__ = "0.1.0"
+__version__ = "1762987066"
