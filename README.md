@@ -13,42 +13,14 @@ Spammy is a self-hosted Python tool inspired by SpamCop. It ingests full EML/RFC
 
 ---
 
-## Installation (pipx empfohlen)
+## Dokumentation
 
-[pipx](https://pipx.pypa.io/) installiert Spammy in ein isoliertes Virtualenv
-und legt eine ausführbare Datei unter `~/.local/bin/spammy` ab – perfekt für
-Systeme mit aktiviertem [Externally Managed Environments](https://packaging.python.org/en/latest/specifications/externally-managed-environments/)
-(früher PEP 668).
-
-```bash
-# einmalig sicherstellen, dass ~/.local/bin im PATH liegt
-pipx ensurepath
-
-# aus dem Repository-Root installieren
-pipx install --python python3 --editable .
-
-# bei späteren Updates
-pipx upgrade spammy
-```
-
-Damit stehen sowohl CLI als auch Abhängigkeiten unabhängig vom System-Python
-zur Verfügung.
-
-### Entwicklung (Editable-Install im Repo)
-
-Für lokale Entwicklung kannst du weiterhin ein klassisches Virtualenv nutzen:
-
-```bash
-python3 -m venv .venv
-. .venv/bin/activate
-python3 -m pip install --upgrade pip
-python3 -m pip install -e .
-```
-
-Dieses Setup bietet dir `spammy` direkt aus dem Workspace (Hot-Reload beim Code
-Ändern).
-
----
+- `doc/installation.md` – beschreibt pipx-basierte Installationen, lokale
+  virtuellen Umgebungen und Benutzer-Installs.
+- `doc/database_setup.md` – liefert Beispiele für das Anlegen von Datenbanken
+  und Benutzern (PostgreSQL, MariaDB/MySQL, SQL Server) inkl. UTF‑8-Hinweisen.
+- `doc/database_schema.sql` – Referenz-Tabellen (messages, analyses,
+  abuse_contacts) inklusive Indexvorschlägen für spätere Auswertungen.
 
 ## Konfiguration
 
