@@ -137,10 +137,6 @@ def main(argv: Optional[list[str]] = None) -> int:
     return 0
 
 
-if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(main())
-
-
 def _persist_result(storage: Optional[StorageBackend], result) -> None:
     if not storage:
         return
@@ -183,3 +179,7 @@ def _build_records(result):
         for contact in result.abuse_contacts
     ]
     return message_record, analysis_record, contacts
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())

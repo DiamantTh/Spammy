@@ -183,7 +183,11 @@ class RDAPClient:
         objects = payload.get("objects")
         if isinstance(objects, dict):
             for handle, obj in objects.items():
-                roles = [role.lower() for role in obj.get("roles", [])]
+                roles = [
+                    role.lower() if isinstance(role, str) else str(role).lower()
+                    for role in obj.get("roles", [])
+                    if role is not None
+                ]
                 contact_blob = obj.get("contact", {})
                 emails = []
                 if isinstance(contact_blob, dict):
@@ -214,7 +218,11 @@ class RDAPClient:
         entities = payload.get("entities")
         if isinstance(entities, list):
             for entity in entities:
-                roles = [role.lower() for role in entity.get("roles", [])]
+                roles = [
+                    role.lower() if isinstance(role, str) else str(role).lower()
+                    for role in entity.get("roles", [])
+                    if role is not None
+                ]
                 emails = []
                 vcard = entity.get("vcardArray")
                 emails.extend(_emails_from_vcard(vcard))
