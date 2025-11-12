@@ -1,14 +1,25 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from uuid import uuid4
 
 from .analysis import analyze_message
 from .config_loader import load_config
 from .rdap_client import RDAPClient
 from .reporting import ReportBuilder
+from .storage import (
+    AbuseContactRecord,
+    AnalysisRecord,
+    MessageRecord,
+    StorageBackend,
+    StorageError,
+    build_storage,
+)
 
 
 def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
@@ -84,9 +95,15 @@ def main(argv: Optional[list[str]] = None) -> int:
     rdap_base = args.rdap_base or config.rdap.base_url
     timeout = args.timeout or config.rdap.timeout
     template_dir = args.template_dir or config.reporting.template_dir
+    try:
+        storage_backend = build_storage(config.storage)
+    except StorageError as exc:  # pragma: no cover - requires env mismatch
+        print(f"[spammy] Failed to initialise storage backend: {exc}", file=sys.stderr)
+        storage_backend = None
 
     client = RDAPClient(timeout=timeout, rdap_base=rdap_base)
     result = analyze_message(raw, rdap_client=client)
+    _persist_result(storage_backend, result)
 
     builder = ReportBuilder(template_dir=template_dir)
     lang = args.language or result.preferred_language
@@ -122,3 +139,47 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
+
+
+def _persist_result(storage: Optional[StorageBackend], result) -> None:
+    if not storage:
+        return
+
+    message_record, analysis_record, contact_records = _build_records(result)
+    try:
+        storage.store_message(message_record, analysis_record, contact_records)
+    except StorageError as exc:  # pragma: no cover - requires backend fail
+        print(f"[spammy] Failed to persist analysis: {exc}", file=sys.stderr)
+
+
+def _build_records(result):
+    message_uuid = result.metadata.message_id or str(uuid4())
+    now = datetime.utcnow()
+    message_record = MessageRecord(
+        message_id=message_uuid,
+        subject=result.metadata.subject,
+        sender=result.metadata.sender,
+        recipient=result.metadata.recipient,
+        category=None,
+        mailbox=result.metadata.recipient,
+        created_at=now,
+    )
+    rdap_owner = result.rdap_record.owner.name if result.rdap_record and result.rdap_record.owner else None
+    analysis_record = AnalysisRecord(
+        message_id=message_uuid,
+        origin_ip=result.candidate_ip,
+        rdap_network=rdap_owner,
+        severity=None,
+        metadata_json=json.dumps(result.to_dict(), ensure_ascii=False),
+        created_at=now,
+    )
+    contacts = [
+        AbuseContactRecord(
+            message_id=message_uuid,
+            address=contact.address,
+            role=contact.source,
+            confidence=contact.confidence,
+        )
+        for contact in result.abuse_contacts
+    ]
+    return message_record, analysis_record, contacts

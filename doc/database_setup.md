@@ -54,6 +54,9 @@ oder materialisierte Views.
 
 ## Hinweise
 
+- Für einen schnellen Start kannst du das eingebaute SQLite-Backend nutzen:
+  setze `backend = "sqlite"` und `database = "var/data/spammy.sqlite3"` in der
+  Konfigurationsdatei. Das Schema wird automatisch beim ersten Lauf erzeugt.
 - Passe Passwörter, Collations und Hostnamen an dein Deployment an.
 - Wenn du Migrationstools (z.B. Django ORM, SQLAlchemy/Alembic) nutzt, halte
   deren Skripte unter Versionskontrolle und kombiniere sie mit den obigen

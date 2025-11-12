@@ -77,6 +77,20 @@ class AttachmentSummary:
 
 
 @dataclass
+class AuthStatus:
+    result: Optional[str] = None
+    detail: Optional[str] = None
+    identity: Optional[str] = None
+
+
+@dataclass
+class AuthSummary:
+    spf: AuthStatus = field(default_factory=AuthStatus)
+    dkim: AuthStatus = field(default_factory=AuthStatus)
+    dmarc: AuthStatus = field(default_factory=AuthStatus)
+
+
+@dataclass
 class AnalysisResult:
     """Complete analysis payload consumed by reporters."""
 
@@ -90,6 +104,7 @@ class AnalysisResult:
     attachments: List[AttachmentSummary]
     original_message: EmailMessage
     inner_message: Optional[EmailMessage] = None
+    auth_summary: AuthSummary = field(default_factory=AuthSummary)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize the result for JSON output."""
@@ -150,6 +165,19 @@ class AnalysisResult:
                 }
                 for att in self.attachments
             ],
+            "auth_summary": {
+                "spf": self._auth_status_dict(self.auth_summary.spf),
+                "dkim": self._auth_status_dict(self.auth_summary.dkim),
+                "dmarc": self._auth_status_dict(self.auth_summary.dmarc),
+            },
+        }
+
+    @staticmethod
+    def _auth_status_dict(status: AuthStatus) -> Dict[str, Optional[str]]:
+        return {
+            "result": status.result,
+            "detail": status.detail,
+            "identity": status.identity,
         }
 
 

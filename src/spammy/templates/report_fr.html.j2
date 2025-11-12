@@ -61,6 +61,32 @@
   </section>
 
   <section>
+    <h2>Résultats d'authentification</h2>
+    <table>
+      <thead>
+        <tr><th>Mécanisme</th><th>Statut</th><th>Identité / détails</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>SPF</td>
+          <td>{{ result.auth_summary.spf.result or "inconnu" }}</td>
+          <td>{{ result.auth_summary.spf.identity or result.auth_summary.spf.detail or "n/a" }}</td>
+        </tr>
+        <tr>
+          <td>DKIM</td>
+          <td>{{ result.auth_summary.dkim.result or "inconnu" }}</td>
+          <td>{{ result.auth_summary.dkim.identity or result.auth_summary.dkim.detail or "n/a" }}</td>
+        </tr>
+        <tr>
+          <td>DMARC</td>
+          <td>{{ result.auth_summary.dmarc.result or "inconnu" }}</td>
+          <td>{{ result.auth_summary.dmarc.identity or result.auth_summary.dmarc.detail or "n/a" }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
     <h2>Chaîne Received</h2>
     {% if result.received_hops %}
       {% for hop in result.received_hops %}

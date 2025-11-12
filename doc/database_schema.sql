@@ -14,7 +14,7 @@ CREATE TABLE messages (
 
 CREATE TABLE analyses (
     id BIGSERIAL PRIMARY KEY,
-    message_id BIGINT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    message_uuid VARCHAR(64) NOT NULL REFERENCES messages(message_uuid) ON DELETE CASCADE,
     origin_ip INET,
     rdap_network TEXT,
     severity VARCHAR(32),
@@ -24,12 +24,12 @@ CREATE TABLE analyses (
 
 CREATE TABLE abuse_contacts (
     id BIGSERIAL PRIMARY KEY,
-    message_id BIGINT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    message_uuid VARCHAR(64) NOT NULL REFERENCES messages(message_uuid) ON DELETE CASCADE,
     address TEXT NOT NULL,
     role VARCHAR(32),
     confidence NUMERIC(4,2)
 );
 
-CREATE INDEX idx_analyses_message_id ON analyses(message_id);
-CREATE INDEX idx_abuse_contacts_message_id ON abuse_contacts(message_id);
+CREATE INDEX idx_analyses_message_uuid ON analyses(message_uuid);
+CREATE INDEX idx_abuse_contacts_message_uuid ON abuse_contacts(message_uuid);
 CREATE INDEX idx_messages_category_created ON messages(category, created_at DESC);

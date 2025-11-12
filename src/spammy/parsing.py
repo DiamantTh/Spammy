@@ -9,7 +9,7 @@ from email.parser import BytesParser
 from email.utils import parsedate_to_datetime, parsedate_to_datetime as parse_email_date, parseaddr
 from typing import List, Optional
 
-from .models import AttachmentSummary, ReceivedHop, SpamMetadata
+from .models import AttachmentSummary, AuthStatus, AuthSummary, ReceivedHop, SpamMetadata
 
 IPV4_RE = re.compile(r"(?:\d{1,3}\.){3}\d{1,3}")
 IPV6_RE = re.compile(r"\b([0-9a-f:]{3,})\b", re.IGNORECASE)
@@ -138,3 +138,56 @@ def summarize_attachments(message: EmailMessage) -> List[AttachmentSummary]:
             )
         )
     return attachments
+
+
+def parse_authentication_summary(message: EmailMessage) -> AuthSummary:
+    summary = AuthSummary()
+    records = message.get_all("Authentication-Results", [])
+    for record in records:
+        _apply_auth_record(summary, record)
+
+    received_spf = message.get("Received-SPF")
+    if received_spf and not summary.spf.result:
+        result_token = received_spf.split(";", 1)[0]
+        parts = result_token.split()
+
+        if parts:
+            status = parts[0].split("=")
+            verdict = status[1] if len(status) > 1 else status[0]
+            summary.spf = AuthStatus(
+                result=verdict.strip(),
+                detail=received_spf.strip(),
+            )
+    return summary
+
+
+AUTH_PATTERN = re.compile(r"(?P<method>spf|dkim|dmarc)=(?P<result>[a-zA-Z]+)(?P<rest>[^;]*)", re.IGNORECASE)
+
+
+def _apply_auth_record(summary: AuthSummary, record: str) -> None:
+    for match in AUTH_PATTERN.finditer(record):
+        method = match.group("method").lower()
+        result = match.group("result").lower()
+        rest = match.group("rest").strip()
+        identity = _extract_identity(rest)
+        status = AuthStatus(
+            result=result,
+            detail=rest or None,
+            identity=identity,
+        )
+        if method == "spf":
+            summary.spf = status
+        elif method == "dkim":
+            summary.dkim = status
+        elif method == "dmarc":
+            summary.dmarc = status
+
+
+IDENTITY_RE = re.compile(r"(smtp\.(mailfrom|helo)|header\.d|d)=([^;\s]+)")
+
+
+def _extract_identity(rest: str) -> Optional[str]:
+    match = IDENTITY_RE.search(rest)
+    if match:
+        return match.group(3)
+    return None

@@ -27,7 +27,7 @@ class ReportingSettings:
 
 @dataclass(frozen=True)
 class StorageSettings:
-    backend: str = "memory"
+    backend: str = "sqlite"
     driver: Optional[str] = None
     host: Optional[str] = None
     port: Optional[int] = None

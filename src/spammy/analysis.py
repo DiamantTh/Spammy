@@ -9,6 +9,7 @@ from .parsing import (
     guess_origin_ip,
     load_message,
     metadata_from_message,
+    parse_authentication_summary,
     summarize_attachments,
 )
 from .rdap_client import RDAPClient
@@ -77,6 +78,7 @@ def analyze_message(raw_data: bytes, rdap_client: Optional[RDAPClient] = None) -
     received_hops = collect_received_hops(inner_message)
     candidate_ip = guess_origin_ip(received_hops)
     attachments = summarize_attachments(inner_message)
+    auth_summary = parse_authentication_summary(inner_message)
 
     rdap_record = client.lookup_ip(candidate_ip)
     sender_domain = metadata.sender.split("@")[-1].lower() if "@" in metadata.sender else None
@@ -106,4 +108,5 @@ def analyze_message(raw_data: bytes, rdap_client: Optional[RDAPClient] = None) -
         attachments=attachments,
         original_message=outer_message,
         inner_message=inner_message if inner_message is not outer_message else None,
+        auth_summary=auth_summary,
     )

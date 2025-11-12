@@ -19,6 +19,11 @@ Contacts recommandés :
 Opérateur réseau : {{ (rdap.owner.name if rdap and rdap.owner else "inconnu") }}
 Registrar : {{ domain.registrar if domain and domain.registrar else "n/a" }}
 
+Résumé d'authentification :
+- SPF : {{ result.auth_summary.spf.result or "inconnu" }} ({{ result.auth_summary.spf.identity or result.auth_summary.spf.detail or "n/a" }})
+- DKIM : {{ result.auth_summary.dkim.result or "inconnu" }} ({{ result.auth_summary.dkim.identity or result.auth_summary.dkim.detail or "n/a" }})
+- DMARC : {{ result.auth_summary.dmarc.result or "inconnu" }} ({{ result.auth_summary.dmarc.identity or result.auth_summary.dmarc.detail or "n/a" }})
+
 En-têtes clés :
 {% for key, value in metadata.headers.items() -%}
 - {{ key }}: {{ value }}

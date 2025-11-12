@@ -9,7 +9,8 @@ timeout = 8
 # template_dir = "templates/custom"
 
 [storage]
-backend = "memory"
+backend = "sqlite"
+# database = "var/data/spammy.sqlite3"
 # driver = "postgresql"
 # host = "localhost"
 # port = 5432

@@ -65,6 +65,32 @@
   </section>
 
   <section>
+    <h2>Authentifizierungsstatus</h2>
+    <table>
+      <thead>
+        <tr><th>Verfahren</th><th>Status</th><th>Identität / Details</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>SPF</td>
+          <td>{{ result.auth_summary.spf.result or "unbekannt" }}</td>
+          <td>{{ result.auth_summary.spf.identity or result.auth_summary.spf.detail or "n/v" }}</td>
+        </tr>
+        <tr>
+          <td>DKIM</td>
+          <td>{{ result.auth_summary.dkim.result or "unbekannt" }}</td>
+          <td>{{ result.auth_summary.dkim.identity or result.auth_summary.dkim.detail or "n/v" }}</td>
+        </tr>
+        <tr>
+          <td>DMARC</td>
+          <td>{{ result.auth_summary.dmarc.result or "unbekannt" }}</td>
+          <td>{{ result.auth_summary.dmarc.identity or result.auth_summary.dmarc.detail or "n/v" }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
     <h2>Received-Kette</h2>
     {% if result.received_hops %}
       {% for hop in result.received_hops %}

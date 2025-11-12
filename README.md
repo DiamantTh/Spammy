@@ -9,6 +9,7 @@ Spammy is a self-hosted Python tool inspired by SpamCop. It ingests full EML/RFC
 - ✉️ **Abuse contact discovery** – extracts abuse/postmaster/security addresses from RDAP entities and objects.
 - 🗣️ **Multilingual templates** – bundled HTML & TXT templates for English, German, French, and Spanish with automatic language selection based on RDAP country (override via `--language`).
 - 📤 **User-ready reports** – writes responsive HTML, JSON, or plaintext summaries and prints a concise CLI summary.
+- 🔐 **SPF/DKIM/DMARC summary** – parses Authentication-Results headers and highlights failing policies directly in the report.
 - 🔌 **Mailserver integration** – designed for Dovecot `sieve_extprograms`, Postfix pipes/content filters, or rspamd external services. Optional daemon/milter modes are documented for advanced setups.
 
 ---
@@ -38,7 +39,8 @@ timeout = 8
 template_dir = "/etc/spammy/templates"
 
 [storage]
-backend = "memory"
+backend = "sqlite"
+# database = "var/data/spammy.sqlite3"
 # driver = "postgresql"
 # host = "localhost"
 # port = 5432
@@ -52,9 +54,10 @@ url = "memcached://localhost:11211"
 ```
 
 Kopiere die Datei an einen deiner gewünschten Orte und passe Werte wie
-`reporting.template_dir` oder Storage-Credentials (`driver`, `host`, `user`,
-`password`, `database`, optional `odbc_dsn` für SQL Server) zentral an – das
-CLI übernimmt sie automatisch, solange entsprechende Flags nicht überschrieben
+`reporting.template_dir`, das gewünschte Storage-Backend (`backend = "sqlite"`
+für lokale Tests oder `"memory"`/`"none"`), sowie optionale DB-Credentials
+(`driver`, `host`, `user`, `password`, `database`, `odbc_dsn`) an – das CLI
+übernimmt sie automatisch, solange entsprechende Flags nicht überschrieben
 werden.
 
 ---

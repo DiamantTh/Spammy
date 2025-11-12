@@ -19,6 +19,11 @@ Suggested abuse contacts:
 Network owner: {{ (rdap.owner.name if rdap and rdap.owner else "unknown") }}
 Registrar: {{ domain.registrar if domain and domain.registrar else "n/a" }}
 
+Authentication summary:
+- SPF: {{ result.auth_summary.spf.result or "unknown" }} ({{ result.auth_summary.spf.identity or result.auth_summary.spf.detail or "n/a" }})
+- DKIM: {{ result.auth_summary.dkim.result or "unknown" }} ({{ result.auth_summary.dkim.identity or result.auth_summary.dkim.detail or "n/a" }})
+- DMARC: {{ result.auth_summary.dmarc.result or "unknown" }} ({{ result.auth_summary.dmarc.identity or result.auth_summary.dmarc.detail or "n/a" }})
+
 Key headers:
 {% for key, value in metadata.headers.items() -%}
 - {{ key }}: {{ value }}
