@@ -210,7 +210,7 @@ def _print_summary(result, rdap_base: str) -> None:
 def _maybe_confirm_stdout(format_choice: str, auto_stdout: bool) -> str:
     if format_choice in {"summary", "none"}:
         return format_choice
-    if auto_stdout or not sys.stdout.isatty():
+    if auto_stdout or not sys.stdout.isatty() or not sys.stdin.isatty():
         return format_choice
     prompt = f"Display rendered {format_choice.upper()} output on stdout? [y/N] "
     try:
