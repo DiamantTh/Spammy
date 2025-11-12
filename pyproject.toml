@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spammy"
-version = "1762987659"
+dynamic = ["version"]
 description = "Local spam analysis and multi-language abuse report generator"
 authors = [
   { name = "Local Admin" }
@@ -29,6 +29,9 @@ dev = [
 
 [tool.setuptools]
 package-dir = {"" = "src"}
+
+[tool.setuptools.dynamic]
+version = {attr = "spammy.version.__version__"}
 
 [tool.setuptools.package-data]
 "spammy" = ["templates/*.j2"]

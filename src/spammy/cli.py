@@ -59,6 +59,11 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         help="Select what to print to stdout (default: summary).",
     )
     parser.add_argument(
+        "--auto-stdout",
+        action="store_true",
+        help="Print stdout output without interactive confirmation prompts.",
+    )
+    parser.add_argument(
         "--language",
         choices=["en", "de", "fr", "es"],
         help="Override the automatically detected template language.",
@@ -119,14 +124,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.output_json:
         args.output_json.write_text(json_report, encoding="utf-8")
 
-    stdout_format = args.stdout_format
+    stdout_format = _maybe_confirm_stdout(args.stdout_format, args.auto_stdout)
     if stdout_format == "summary":
-        print(
-            f"Subject: {result.metadata.subject}\n"
-            f"Sender: {result.metadata.sender}\n"
-            f"Origin IP: {result.candidate_ip or 'unknown'}\n"
-            f"Contacts: {', '.join(c.address for c in result.abuse_contacts) or 'none'}"
-        )
+        _print_summary(result, rdap_base=rdap_base)
     elif stdout_format == "html":
         sys.stdout.write(html_report)
     elif stdout_format == "text":
@@ -179,6 +179,48 @@ def _build_records(result):
         for contact in result.abuse_contacts
     ]
     return message_record, analysis_record, contacts
+
+
+def _print_summary(result, rdap_base: str) -> None:
+    rdap_owner = (
+        result.rdap_record.owner.name
+        if result.rdap_record and result.rdap_record.owner and result.rdap_record.owner.name
+        else "unknown"
+    )
+    registrar = result.domain_record.registrar if result.domain_record else "n/a"
+    domain = result.domain_record.domain if result.domain_record else "n/a"
+    contacts = ", ".join(c.address for c in result.abuse_contacts) or "none"
+    auth = result.auth_summary
+    print(
+        "=== Spammy Analysis Summary ===\n"
+        f"Subject       : {result.metadata.subject}\n"
+        f"Sender        : {result.metadata.sender}\n"
+        f"Recipient     : {result.metadata.recipient}\n"
+        f"Origin IP     : {result.candidate_ip or 'unknown'}\n"
+        f"Attachments   : {len(result.attachments)}\n"
+        f"RDAP IP check : {rdap_base} -> owner {rdap_owner}\n"
+        f"RDAP domain   : {domain} (registrar {registrar})\n"
+        f"SPF           : {auth.spf.result or 'unknown'} ({auth.spf.identity or auth.spf.detail or 'n/a'})\n"
+        f"DKIM          : {auth.dkim.result or 'unknown'} ({auth.dkim.identity or auth.dkim.detail or 'n/a'})\n"
+        f"DMARC         : {auth.dmarc.result or 'unknown'} ({auth.dmarc.identity or auth.dmarc.detail or 'n/a'})\n"
+        f"Contacts      : {contacts}\n"
+    )
+
+
+def _maybe_confirm_stdout(format_choice: str, auto_stdout: bool) -> str:
+    if format_choice in {"summary", "none"}:
+        return format_choice
+    if auto_stdout or not sys.stdout.isatty():
+        return format_choice
+    prompt = f"Display rendered {format_choice.upper()} output on stdout? [y/N] "
+    try:
+        answer = input(prompt).strip().lower()
+    except EOFError:  # pragma: no cover - interactive guard
+        return "none"
+    if answer in {"y", "yes"}:
+        return format_choice
+    print("[spammy] Skipping stdout template output.")
+    return "none"
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -88,6 +88,7 @@ Important flags:
 | `--template-dir /path` | Use custom Jinja2 templates instead of the bundled ones. |
 | `--output-html/--output-json/--output-text` | Persist rendered reports. |
 | `--stdout-format {summary,html,text,json,none}` | Control CLI output. |
+| `--auto-stdout` | Skip the confirmation prompt before printing HTML/TXT/JSON templates to stdout. |
 | `--rdap-base URL` | Point to an alternative RDAP endpoint or mirror. |
 | `--timeout SEC` | Adjust RDAP lookup timeout (default 8 s). |
 
