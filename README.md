@@ -49,6 +49,43 @@ Dieses Setup bietet dir `spammy` direkt aus dem Workspace (Hot-Reload beim Code
 
 ---
 
+## Konfiguration
+
+Spammy lädt Einstellungen aus `config/spammy.toml` (im Repo oder Deployment),
+aus `/etc/spammy/spammy.toml` oder aus dem Pfad, den du via
+`SPAMMY_CONFIG=/path/datei.toml` bzw. `--config` an das CLI übergibst. Eine
+Beispieldatei findest du unter `config/spammy.example.toml`:
+
+```toml
+[rdap]
+base_url = "https://rdap.org"
+timeout = 8
+
+[reporting]
+template_dir = "/etc/spammy/templates"
+
+[storage]
+backend = "memory"
+# driver = "postgresql"
+# host = "localhost"
+# port = 5432
+# user = "spammy"
+# password = "secret"
+# database = "spammy"
+# odbc_dsn = "Driver=ODBC Driver 18 for SQL Server;Server=tcp:sql.example,1433;UID=spammy;PWD=secret"
+
+[cache]
+url = "memcached://localhost:11211"
+```
+
+Kopiere die Datei an einen deiner gewünschten Orte und passe Werte wie
+`reporting.template_dir` oder Storage-Credentials (`driver`, `host`, `user`,
+`password`, `database`, optional `odbc_dsn` für SQL Server) zentral an – das
+CLI übernimmt sie automatisch, solange entsprechende Flags nicht überschrieben
+werden.
+
+---
+
 ## Usage
 
 Basic analysis from a file:
@@ -118,12 +155,12 @@ Create your own files in `/etc/spammy/templates` (or similar) and reference them
 
 3. In the user or global Sieve script:
 
-   ```sieve
-   if header :contains "X-Report-Spam" "yes" {
-     pipe :copy "spammy.sh";
-     stop;
-   }
-   ```
+```sieve
+if header :contains "X-Report-Spam" "yes" {
+  pipe :copy "spammy-sieve.sh";
+  stop;
+}
+```
 
 The full EML (including attachments) reaches the CLI via stdin. Dovecot exports `$SIEVE_SENDER`, `$SIEVE_RECIPIENT`, etc., should you need extra context inside the wrapper.
 

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from .analysis import analyze_message
+from .config_loader import load_config
 from .rdap_client import RDAPClient
 from .reporting import ReportBuilder
 
@@ -14,6 +15,11 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="spammy",
         description="Analyze spam EML files, run RDAP lookups, and generate multilingual abuse reports.",
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        help="Pfad zur Spammy-Konfiguration (Standard: ./config/spammy.toml oder /etc/spammy/spammy.toml).",
     )
     parser.add_argument(
         "--eml",
@@ -53,13 +59,13 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--rdap-base",
-        default="https://rdap.org",
+        default=None,
         help="Override RDAP base URL (defaults to rdap.org).",
     )
     parser.add_argument(
         "--timeout",
         type=int,
-        default=8,
+        default=None,
         help="Network timeout for RDAP lookups in seconds (default: 8).",
     )
     return parser.parse_args(argv)
@@ -74,10 +80,15 @@ def load_input(path: Optional[Path]) -> bytes:
 def main(argv: Optional[list[str]] = None) -> int:
     args = parse_args(argv)
     raw = load_input(args.eml)
-    client = RDAPClient(timeout=args.timeout, rdap_base=args.rdap_base)
+    config = load_config(args.config)
+    rdap_base = args.rdap_base or config.rdap.base_url
+    timeout = args.timeout or config.rdap.timeout
+    template_dir = args.template_dir or config.reporting.template_dir
+
+    client = RDAPClient(timeout=timeout, rdap_base=rdap_base)
     result = analyze_message(raw, rdap_client=client)
 
-    builder = ReportBuilder(template_dir=args.template_dir)
+    builder = ReportBuilder(template_dir=template_dir)
     lang = args.language or result.preferred_language
 
     html_report = builder.render_html(result, lang=lang)

@@ -1,0 +1,33 @@
+# Spammy configuration example
+
+[rdap]
+base_url = "https://rdap.org"
+timeout = 8
+
+[reporting]
+# Optional absolute path to custom template directory
+# template_dir = "/etc/spammy/templates"
+
+[storage]
+backend = "memory"
+# driver = "postgresql"
+# host = "localhost"
+# port = 5432
+# user = "spammy"
+# password = "secret"
+# database = "spammy"
+
+# Alternative Beispiele:
+# driver = "mysql"
+# host = "db.internal"
+# port = 3306
+# user = "spammy"
+# password = "secret"
+# database = "spammy"
+
+# Für Microsoft SQL Server via ODBC:
+# driver = "mssql+pyodbc"
+# odbc_dsn = "Driver=ODBC Driver 18 for SQL Server;Server=tcp:sql.example,1433;Encrypt=yes;TrustServerCertificate=yes;UID=spammy;PWD=secret"
+
+[cache]
+# url = "memcached://localhost:11211"
