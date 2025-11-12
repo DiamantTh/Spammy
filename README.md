@@ -17,7 +17,8 @@ Spammy is a self-hosted Python tool inspired by SpamCop. It ingests full EML/RFC
 
 [pipx](https://pipx.pypa.io/) installiert Spammy in ein isoliertes Virtualenv
 und legt eine ausführbare Datei unter `~/.local/bin/spammy` ab – perfekt für
-Systeme mit aktiviertem [PEP 668](https://peps.python.org/pep-0668/).
+Systeme mit aktiviertem [Externally Managed Environments](https://packaging.python.org/en/latest/specifications/externally-managed-environments/)
+(früher PEP 668).
 
 ```bash
 # einmalig sicherstellen, dass ~/.local/bin im PATH liegt
