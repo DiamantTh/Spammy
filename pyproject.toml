@@ -35,7 +35,7 @@ package-dir = {"" = "src"}
 version = {attr = "spammy.version.__version__"}
 
 [tool.setuptools.package-data]
-"spammy" = ["templates/*.j2"]
+"spammy" = ["templates/*.j2", "_version.txt"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
