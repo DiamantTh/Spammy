@@ -33,6 +33,17 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         help="Pfad zur Spammy-Konfiguration (Standard: ./config/spammy.toml oder /etc/spammy/spammy.toml).",
     )
     parser.add_argument(
+        "--version",
+        action="store_true",
+        help="Print Spammy version and exit.",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging.",
+    )
+    parser.add_argument(
         "--eml",
         type=Path,
         help="Path to an EML/RFC822 file. If omitted, stdin is read (useful for Dovecot/Postfix pipe).",
@@ -95,6 +106,11 @@ def load_input(path: Optional[Path]) -> bytes:
 
 def main(argv: Optional[list[str]] = None) -> int:
     args = parse_args(argv)
+    if args.version:
+        from . import __version__
+
+        print(f"Spammy {__version__}")
+        return 0
     raw = load_input(args.eml)
     config = load_config(args.config)
     rdap_base = args.rdap_base or config.rdap.base_url
