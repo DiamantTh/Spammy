@@ -27,74 +27,81 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         prog="spammy",
         description="Analyze spam EML files, run RDAP lookups, and generate multilingual abuse reports.",
     )
-    parser.add_argument(
+    general = parser.add_argument_group("General")
+    general.add_argument(
         "--auto-stdout",
         action="store_true",
         help="Print stdout output without interactive confirmation prompts.",
     )
-    parser.add_argument(
+    general.add_argument(
         "--config",
         type=Path,
         help="Pfad zur Spammy-Konfiguration (Standard: ./config/spammy.toml oder /etc/spammy/spammy.toml).",
     )
-    parser.add_argument(
+    general.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging on stderr.",
+    )
+    general.add_argument(
+        "-V",
+        "--version",
+        action="store_true",
+        help="Print Spammy version and exit.",
+    )
+
+    io_group = parser.add_argument_group("Input / Output")
+    io_group.add_argument(
         "--eml",
         type=Path,
         help="Path to an EML/RFC822 file. If omitted, stdin is read (useful for Dovecot/Postfix pipe).",
     )
-    parser.add_argument(
-        "--language",
-        choices=["en", "de", "fr", "es"],
-        help="Override the automatically detected template language.",
-    )
-    parser.add_argument(
+    io_group.add_argument(
         "--output-html",
         type=Path,
         help="Write the rendered HTML report to this path.",
     )
-    parser.add_argument(
+    io_group.add_argument(
         "--output-json",
         type=Path,
         help="Write machine-readable JSON to this path.",
     )
-    parser.add_argument(
+    io_group.add_argument(
         "--output-text",
         type=Path,
         help="Write the localized plain-text template to this path.",
     )
-    parser.add_argument(
-        "--rdap-base",
-        default=None,
-        help="Override RDAP base URL (defaults to rdap.org).",
+
+    rendering = parser.add_argument_group("Rendering")
+    rendering.add_argument(
+        "--language",
+        choices=["en", "de", "fr", "es"],
+        help="Override the automatically detected template language.",
     )
-    parser.add_argument(
+    rendering.add_argument(
         "--stdout-format",
         choices=["summary", "html", "json", "text", "none"],
         default="summary",
         help="Select what to print to stdout (default: summary).",
     )
-    parser.add_argument(
+    rendering.add_argument(
         "--template-dir",
         type=Path,
-        help="Optional template directory overriding the bundled templates.",
+        help="Optional template directory overriding the bundled ones.",
     )
-    parser.add_argument(
+
+    network = parser.add_argument_group("Network")
+    network.add_argument(
+        "--rdap-base",
+        default=None,
+        help="Override RDAP base URL (defaults to rdap.org).",
+    )
+    network.add_argument(
         "--timeout",
         type=int,
         default=None,
         help="Network timeout for RDAP lookups in seconds (default: 8).",
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Enable verbose logging.",
-    )
-    parser.add_argument(
-        "-V",
-        "--version",
-        action="store_true",
-        help="Print Spammy version and exit.",
     )
     return parser.parse_args(argv)
 
