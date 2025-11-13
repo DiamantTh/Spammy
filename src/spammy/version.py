@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from importlib import resources
+from pathlib import Path
 
 
 def _load_version() -> str:
@@ -11,17 +11,11 @@ def _load_version() -> str:
             return str(int(override))
         except ValueError:
             pass
-    try:
-        data = (
-            resources.files("spammy")
-            .joinpath("_version.txt")
-            .read_text(encoding="utf-8")
-            .strip()
-        )
+    version_file = Path(__file__).with_name("_version.txt")
+    if version_file.is_file():
+        data = version_file.read_text(encoding="utf-8").strip()
         if data:
             return data
-    except FileNotFoundError:
-        pass
     return "0.0.dev0"
 
 
