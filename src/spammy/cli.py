@@ -33,11 +33,6 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         help="Pfad zur Spammy-Konfiguration (Standard: ./config/spammy.toml oder /etc/spammy/spammy.toml).",
     )
     parser.add_argument(
-        "--version",
-        action="store_true",
-        help="Print Spammy version and exit.",
-    )
-    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -94,6 +89,12 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         type=int,
         default=None,
         help="Network timeout for RDAP lookups in seconds (default: 8).",
+    )
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="store_true",
+        help="Print Spammy version and exit.",
     )
     return parser.parse_args(argv)
 
