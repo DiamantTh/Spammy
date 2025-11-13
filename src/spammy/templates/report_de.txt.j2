@@ -20,6 +20,12 @@ Received-Kette:
 - keine
 {% endif %}
 
+=== DNS- / MX-Prüfungen ===
+Reverse DNS   : {{ result.dns_checks.reverse_dns if result.dns_checks.reverse_dns else ("Fehler (" ~ result.dns_checks.reverse_error ~ ")" if result.dns_checks.reverse_error else "k. A.") }}
+MX-Einträge   : {{ result.dns_checks.mx_records | join(", ") if result.dns_checks.mx_records else ("Fehler (" ~ result.dns_checks.mx_error ~ ")" if result.dns_checks.mx_error else "keine") }}
+SPF-Eintrag   : {{ "vorhanden" if result.dns_checks.spf_present is sameas true else ("nicht gefunden" if result.dns_checks.spf_present is sameas false else ("Fehler (" ~ result.dns_checks.spf_error ~ ")" if result.dns_checks.spf_error else "unbekannt")) }}
+Blocklisten   : {{ result.dns_checks.blocklist_hits | join(", ") if result.dns_checks.blocklist_hits else ("Fehler (" ~ result.dns_checks.blocklist_error ~ ")" if result.dns_checks.blocklist_error else "keine Treffer") }}
+
 === Body-Analyse ===
 URLs:
 {% if result.body_indicators.urls -%}
@@ -50,7 +56,8 @@ IPs:
 {% for detail in result.body_link_details %}- {{ detail.domain or detail.url }}
   Aufgelöste IPs: {{ detail.resolved_ips | join(", ") or "k. A." }}
   Registrar: {{ detail.domain_record.registrar if detail.domain_record and detail.domain_record.registrar else "k. A." }}
-  IP-Betreiber: {% if detail.ip_records %}{{ detail.ip_records | map(attribute="owner.name") | select | join(", ") or "k. A." }}{% else %}k. A.{% endif %}
+  IP-Betreiber: {{ detail.ip_owner_names | join(", ") if detail.ip_owner_names else "k. A." }}
+  {{ "Warnung: HTTP-Link ohne TLS" if not detail.uses_https else "" }}
 
 {% endfor -%}
 {% else -%}

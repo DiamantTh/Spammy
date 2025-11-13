@@ -20,6 +20,12 @@ Chaîne Received :
 - aucune
 {% endif %}
 
+=== Vérifications DNS / MX ===
+Reverse DNS   : {{ result.dns_checks.reverse_dns if result.dns_checks.reverse_dns else ("erreur (" ~ result.dns_checks.reverse_error ~ ")" if result.dns_checks.reverse_error else "n/a") }}
+MX            : {{ result.dns_checks.mx_records | join(", ") if result.dns_checks.mx_records else ("erreur (" ~ result.dns_checks.mx_error ~ ")" if result.dns_checks.mx_error else "aucun") }}
+Enregistrement SPF : {{ "présent" if result.dns_checks.spf_present is sameas true else ("absent" if result.dns_checks.spf_present is sameas false else ("erreur (" ~ result.dns_checks.spf_error ~ ")" if result.dns_checks.spf_error else "inconnu")) }}
+Listes noires : {{ result.dns_checks.blocklist_hits | join(", ") if result.dns_checks.blocklist_hits else ("erreur (" ~ result.dns_checks.blocklist_error ~ ")" if result.dns_checks.blocklist_error else "aucune") }}
+
 === Analyse du corps ===
 URLs :
 {% if result.body_indicators.urls -%}
@@ -50,7 +56,8 @@ Adresses IP :
 {% for detail in result.body_link_details %}- {{ detail.domain or detail.url }}
   IP résolues : {{ detail.resolved_ips | join(", ") or "n/a" }}
   Registrar   : {{ detail.domain_record.registrar if detail.domain_record and detail.domain_record.registrar else "n/a" }}
-  Propriétaires IP : {% if detail.ip_records %}{{ detail.ip_records | map(attribute="owner.name") | select | join(", ") or "n/a" }}{% else %}n/a{% endif %}
+  Propriétaires IP : {{ detail.ip_owner_names | join(", ") if detail.ip_owner_names else "n/a" }}
+  {{ "Avertissement : lien HTTP sans TLS" if not detail.uses_https else "" }}
 
 {% endfor -%}
 {% else -%}

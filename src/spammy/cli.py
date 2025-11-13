@@ -210,6 +210,30 @@ def _print_summary(result, rdap_base: str) -> None:
         print("Received hops    : none")
     print()
 
+    dns = result.dns_checks
+    print("=== DNS / MX checks ===")
+    reverse = dns.reverse_dns or f"(error: {dns.reverse_error})" if dns.reverse_error else "n/a"
+    print(f"Reverse DNS    : {reverse}")
+    if dns.mx_records:
+        print(f"MX records     : {', '.join(dns.mx_records)}")
+    elif dns.mx_error:
+        print(f"MX records     : error ({dns.mx_error})")
+    else:
+        print("MX records     : none")
+    if dns.spf_present is True:
+        print("SPF record     : present")
+    elif dns.spf_present is False:
+        print("SPF record     : not found")
+    else:
+        print(f"SPF record     : error ({dns.spf_error})" if dns.spf_error else "unknown")
+    if dns.blocklist_hits:
+        print(f"Blocklist hits : {', '.join(dns.blocklist_hits)}")
+    elif dns.blocklist_error:
+        print(f"Blocklist hits : error ({dns.blocklist_error})")
+    else:
+        print("Blocklist hits : none")
+    print()
+
     indicators = result.body_indicators
     print("=== Body analysis ===")
     if indicators.urls:
@@ -247,14 +271,10 @@ def _print_summary(result, rdap_base: str) -> None:
                 print(f"    Resolved IPs: {', '.join(detail.resolved_ips)}")
             if detail.domain_record and detail.domain_record.registrar:
                 print(f"    Registrar   : {detail.domain_record.registrar}")
-            if detail.ip_records:
-                owners = ", ".join(
-                    record.owner.name
-                    for record in detail.ip_records
-                    if record.owner and record.owner.name
-                )
-                if owners:
-                    print(f"    IP Owners   : {owners}")
+            if detail.ip_owner_names:
+                print(f"    IP Owners   : {', '.join(detail.ip_owner_names)}")
+            if not detail.uses_https:
+                print("    WARNING     : HTTP link (no TLS)")
         print()
 
     if result.abuse_contacts:

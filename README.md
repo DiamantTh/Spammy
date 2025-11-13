@@ -9,6 +9,7 @@ Spammy is a self-hosted Python tool inspired by SpamCop. It ingests full EML/RFC
 - ✉️ **Abuse contact discovery** – extracts abuse/postmaster/security addresses from RDAP entities and objects.
 - 🗣️ **Multilingual templates** – bundled HTML & TXT templates for English, German, French, and Spanish with automatic language selection based on RDAP country (override via `--language`).
 - 📤 **User-ready reports** – writes responsive HTML, JSON, or plaintext summaries and prints a concise CLI summary.
+- 🧭 **DNS/MX sanity checks** – reverse DNS, MX/SPF presence, and simple blocklist probes for the suspected sender plus RDAP on every link in the message body.
 - 🔐 **SPF/DKIM/DMARC summary** – parses Authentication-Results headers and highlights failing policies directly in the report.
 - 🔌 **Mailserver integration** – designed for Dovecot `sieve_extprograms`, Postfix pipes/content filters, or rspamd external services. Optional daemon/milter modes are documented for advanced setups.
 

@@ -105,6 +105,20 @@ class BodyLinkDetail:
     resolved_ips: List[str]
     domain_record: Optional[DomainRecord] = None
     ip_records: List[RDAPRecord] = field(default_factory=list)
+    uses_https: bool = True
+    ip_owner_names: List[str] = field(default_factory=list)
+
+
+@dataclass
+class DNSCheckSummary:
+    reverse_dns: Optional[str] = None
+    reverse_error: Optional[str] = None
+    mx_records: List[str] = field(default_factory=list)
+    mx_error: Optional[str] = None
+    spf_present: Optional[bool] = None
+    spf_error: Optional[str] = None
+    blocklist_hits: List[str] = field(default_factory=list)
+    blocklist_error: Optional[str] = None
 
 
 @dataclass
@@ -124,6 +138,7 @@ class AnalysisResult:
     auth_summary: AuthSummary = field(default_factory=AuthSummary)
     body_indicators: BodyIndicators = field(default_factory=BodyIndicators)
     body_link_details: List[BodyLinkDetail] = field(default_factory=list)
+    dns_checks: DNSCheckSummary = field(default_factory=DNSCheckSummary)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize the result for JSON output."""
@@ -202,9 +217,20 @@ class AnalysisResult:
                     "resolved_ips": detail.resolved_ips,
                     "domain_record": self._domain_dict(detail.domain_record),
                     "ip_records": [self._rdap_dict(record) for record in detail.ip_records],
+                    "uses_https": detail.uses_https,
                 }
                 for detail in self.body_link_details
             ],
+            "dns_checks": {
+                "reverse_dns": self.dns_checks.reverse_dns,
+                "reverse_error": self.dns_checks.reverse_error,
+                "mx_records": self.dns_checks.mx_records,
+                "mx_error": self.dns_checks.mx_error,
+                "spf_present": self.dns_checks.spf_present,
+                "spf_error": self.dns_checks.spf_error,
+                "blocklist_hits": self.dns_checks.blocklist_hits,
+                "blocklist_error": self.dns_checks.blocklist_error,
+            },
         }
 
     @staticmethod

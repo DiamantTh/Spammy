@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import ipaddress
 import socket
 from typing import List, Optional
 from urllib.parse import urlparse
 
+from .dns_checks import DNSCheckSummary, perform_dns_checks
 from .models import (
     AbuseContact,
     AnalysisResult,
@@ -92,9 +94,10 @@ def analyze_message(raw_data: bytes, rdap_client: Optional[RDAPClient] = None) -
     body_indicators = extract_body_indicators(inner_message)
     body_link_details = _resolve_body_links(body_indicators.urls, rdap_client=client)
     auth_summary = parse_authentication_summary(inner_message)
+    sender_domain = metadata.sender.split("@")[-1].lower() if "@" in metadata.sender else None
+    dns_checks = perform_dns_checks(candidate_ip, sender_domain)
 
     rdap_record = client.lookup_ip(candidate_ip)
-    sender_domain = metadata.sender.split("@")[-1].lower() if "@" in metadata.sender else None
     domain_record = client.lookup_domain(sender_domain)
 
     abuse_contacts = _merge_contacts(
@@ -124,6 +127,7 @@ def analyze_message(raw_data: bytes, rdap_client: Optional[RDAPClient] = None) -
         auth_summary=auth_summary,
         body_indicators=body_indicators,
         body_link_details=body_link_details,
+        dns_checks=dns_checks,
     )
 
 
@@ -133,16 +137,28 @@ def _resolve_body_links(urls: List[str], rdap_client: RDAPClient) -> List[BodyLi
     for url in urls:
         parsed = urlparse(url)
         domain = parsed.hostname
+        uses_https = parsed.scheme.lower() == "https"
         if not domain or domain in seen_domains:
             continue
         seen_domains.add(domain)
+        is_ip_literal = False
+        try:
+            ipaddress.ip_address(domain)
+            is_ip_literal = True
+        except ValueError:
+            pass
         ips = _resolve_ips(domain, limit=3)
         ip_records: List[RDAPRecord] = []
         for ip in ips:
             record = rdap_client.lookup_ip(ip)
             if record:
                 ip_records.append(record)
-        domain_record = rdap_client.lookup_domain(domain)
+        domain_record = None if is_ip_literal else rdap_client.lookup_domain(domain)
+        owner_names = [
+            record.owner.name
+            for record in ip_records
+            if record.owner and record.owner.name
+        ]
         details.append(
             BodyLinkDetail(
                 url=url,
@@ -150,6 +166,8 @@ def _resolve_body_links(urls: List[str], rdap_client: RDAPClient) -> List[BodyLi
                 resolved_ips=ips,
                 domain_record=domain_record,
                 ip_records=ip_records,
+                uses_https=uses_https,
+                ip_owner_names=owner_names,
             )
         )
     return details
