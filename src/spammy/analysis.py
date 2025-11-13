@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+import socket
 from typing import List, Optional
+from urllib.parse import urlparse
 
-from .models import AbuseContact, AnalysisResult, AttachmentSummary, DomainRecord, RDAPRecord, SpamMetadata
+from .models import (
+    AbuseContact,
+    AnalysisResult,
+    AttachmentSummary,
+    BodyLinkDetail,
+    DomainRecord,
+    RDAPRecord,
+    SpamMetadata,
+)
 from .parsing import (
     collect_received_hops,
     extract_body_indicators,
@@ -80,6 +90,7 @@ def analyze_message(raw_data: bytes, rdap_client: Optional[RDAPClient] = None) -
     candidate_ip = guess_origin_ip(received_hops)
     attachments = summarize_attachments(inner_message)
     body_indicators = extract_body_indicators(inner_message)
+    body_link_details = _resolve_body_links(body_indicators.urls, rdap_client=client)
     auth_summary = parse_authentication_summary(inner_message)
 
     rdap_record = client.lookup_ip(candidate_ip)
@@ -112,4 +123,50 @@ def analyze_message(raw_data: bytes, rdap_client: Optional[RDAPClient] = None) -
         inner_message=inner_message if inner_message is not outer_message else None,
         auth_summary=auth_summary,
         body_indicators=body_indicators,
+        body_link_details=body_link_details,
     )
+
+
+def _resolve_body_links(urls: List[str], rdap_client: RDAPClient) -> List[BodyLinkDetail]:
+    details: List[BodyLinkDetail] = []
+    seen_domains: set[str] = set()
+    for url in urls:
+        parsed = urlparse(url)
+        domain = parsed.hostname
+        if not domain or domain in seen_domains:
+            continue
+        seen_domains.add(domain)
+        ips = _resolve_ips(domain, limit=3)
+        ip_records: List[RDAPRecord] = []
+        for ip in ips:
+            record = rdap_client.lookup_ip(ip)
+            if record:
+                ip_records.append(record)
+        domain_record = rdap_client.lookup_domain(domain)
+        details.append(
+            BodyLinkDetail(
+                url=url,
+                domain=domain,
+                resolved_ips=ips,
+                domain_record=domain_record,
+                ip_records=ip_records,
+            )
+        )
+    return details
+
+
+def _resolve_ips(domain: str, limit: int = 3) -> List[str]:
+    try:
+        infos = socket.getaddrinfo(domain, None)
+    except socket.gaierror:
+        return []
+    ips: List[str] = []
+    for info in infos:
+        ip = info[4][0]
+        if ":" in ip:
+            continue  # skip IPv6 for now
+        if ip not in ips:
+            ips.append(ip)
+        if len(ips) >= limit:
+            break
+    return ips

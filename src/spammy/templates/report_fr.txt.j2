@@ -45,6 +45,18 @@ Adresses IP :
 - aucune
 {% endif %}
 
+=== Hébergeurs des liens ===
+{% if result.body_link_details -%}
+{% for detail in result.body_link_details %}- {{ detail.domain or detail.url }}
+  IP résolues : {{ detail.resolved_ips | join(", ") or "n/a" }}
+  Registrar   : {{ detail.domain_record.registrar if detail.domain_record and detail.domain_record.registrar else "n/a" }}
+  Propriétaires IP : {% if detail.ip_records %}{{ detail.ip_records | map(attribute="owner.name") | select | join(", ") or "n/a" }}{% else %}n/a{% endif %}
+
+{% endfor -%}
+{% else -%}
+- aucun lien détecté
+{% endif %}
+
 === Authentification ===
 SPF  : {{ result.auth_summary.spf.result or "inconnu" }} ({{ result.auth_summary.spf.identity or result.auth_summary.spf.detail or "n/a" }})
 DKIM : {{ result.auth_summary.dkim.result or "inconnu" }} ({{ result.auth_summary.dkim.identity or result.auth_summary.dkim.detail or "n/a" }})

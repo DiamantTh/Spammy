@@ -45,6 +45,18 @@ IPs:
 - keine
 {% endif %}
 
+=== Link-Betreiber ===
+{% if result.body_link_details -%}
+{% for detail in result.body_link_details %}- {{ detail.domain or detail.url }}
+  Aufgelöste IPs: {{ detail.resolved_ips | join(", ") or "k. A." }}
+  Registrar: {{ detail.domain_record.registrar if detail.domain_record and detail.domain_record.registrar else "k. A." }}
+  IP-Betreiber: {% if detail.ip_records %}{{ detail.ip_records | map(attribute="owner.name") | select | join(", ") or "k. A." }}{% else %}k. A.{% endif %}
+
+{% endfor -%}
+{% else -%}
+- keine
+{% endif %}
+
 === Authentifizierung ===
 SPF  : {{ result.auth_summary.spf.result or "unbekannt" }} ({{ result.auth_summary.spf.identity or result.auth_summary.spf.detail or "n/v" }})
 DKIM : {{ result.auth_summary.dkim.result or "unbekannt" }} ({{ result.auth_summary.dkim.identity or result.auth_summary.dkim.detail or "n/v" }})

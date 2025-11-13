@@ -99,6 +99,15 @@ class BodyIndicators:
 
 
 @dataclass
+class BodyLinkDetail:
+    url: str
+    domain: Optional[str]
+    resolved_ips: List[str]
+    domain_record: Optional[DomainRecord] = None
+    ip_records: List[RDAPRecord] = field(default_factory=list)
+
+
+@dataclass
 class AnalysisResult:
     """Complete analysis payload consumed by reporters."""
 
@@ -114,6 +123,7 @@ class AnalysisResult:
     inner_message: Optional[EmailMessage] = None
     auth_summary: AuthSummary = field(default_factory=AuthSummary)
     body_indicators: BodyIndicators = field(default_factory=BodyIndicators)
+    body_link_details: List[BodyLinkDetail] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize the result for JSON output."""
@@ -185,6 +195,16 @@ class AnalysisResult:
                 "domains": self.body_indicators.domains,
                 "ips": self.body_indicators.ips,
             },
+            "body_link_details": [
+                {
+                    "url": detail.url,
+                    "domain": detail.domain,
+                    "resolved_ips": detail.resolved_ips,
+                    "domain_record": self._domain_dict(detail.domain_record),
+                    "ip_records": [self._rdap_dict(record) for record in detail.ip_records],
+                }
+                for detail in self.body_link_details
+            ],
         }
 
     @staticmethod
@@ -193,6 +213,43 @@ class AnalysisResult:
             "result": status.result,
             "detail": status.detail,
             "identity": status.identity,
+        }
+
+    @staticmethod
+    def _rdap_dict(record: Optional[RDAPRecord]) -> Optional[Dict[str, Any]]:
+        if not record:
+            return None
+        return {
+            "ip": record.ip,
+            "owner": record.owner.__dict__ if record.owner else None,
+            "contacts": [
+                {
+                    "address": c.address,
+                    "source": c.source,
+                    "confidence": c.confidence,
+                }
+                for c in record.contacts
+            ],
+            "raw": record.raw,
+        }
+
+    @staticmethod
+    def _domain_dict(record: Optional[DomainRecord]) -> Optional[Dict[str, Any]]:
+        if not record:
+            return None
+        return {
+            "domain": record.domain,
+            "registrar": record.registrar,
+            "contacts": [
+                {
+                    "address": c.address,
+                    "source": c.source,
+                    "confidence": c.confidence,
+                }
+                for c in record.contacts
+            ],
+            "country": record.country,
+            "raw": record.raw,
         }
 
 

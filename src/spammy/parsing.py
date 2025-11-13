@@ -149,7 +149,7 @@ def summarize_attachments(message: EmailMessage) -> List[AttachmentSummary]:
     return attachments
 
 
-URL_RE = re.compile(r"https?://[^\s>]+", re.IGNORECASE)
+URL_RE = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
 DOMAIN_RE = re.compile(r"\b([a-z0-9][a-z0-9-]{1,63}\.)+(?:[a-z]{2,})\b", re.IGNORECASE)
 BODY_IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 

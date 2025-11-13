@@ -239,6 +239,24 @@ def _print_summary(result, rdap_base: str) -> None:
     print(f"DMARC: {auth.dmarc.result or 'unknown'} ({auth.dmarc.identity or auth.dmarc.detail or 'n/a'})")
     print()
 
+    if result.body_link_details:
+        print("=== Body link owners ===")
+        for detail in result.body_link_details:
+            print(f"- {detail.domain or detail.url}")
+            if detail.resolved_ips:
+                print(f"    Resolved IPs: {', '.join(detail.resolved_ips)}")
+            if detail.domain_record and detail.domain_record.registrar:
+                print(f"    Registrar   : {detail.domain_record.registrar}")
+            if detail.ip_records:
+                owners = ", ".join(
+                    record.owner.name
+                    for record in detail.ip_records
+                    if record.owner and record.owner.name
+                )
+                if owners:
+                    print(f"    IP Owners   : {owners}")
+        print()
+
     if result.abuse_contacts:
         print("=== Abuse contacts ===")
         for contact in result.abuse_contacts:
