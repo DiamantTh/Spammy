@@ -1,30 +1,30 @@
 """Internal REST API Blueprint – consumed by the Web UI (AJAX) and TUI.
 
-All endpoints are same-origin only (enforced via CSRF/Referer in the security
-middleware for state-changing routes). No separate authentication is required
-for the internal API since it only listens on 127.0.0.1.
+All business logic is delegated to :mod:`spammy.service`.
+UI routes stay completely decoupled from analysis/storage code.
 
 Endpoints:
-  POST /api/v1/analyze          – submit EML, returns {job_id}
-  GET  /api/v1/jobs/<job_id>    – poll job state
-  GET  /api/v1/reports/<job_id> – full JSON analysis result
-  GET  /api/v1/history          – paginated list of stored messages
+  POST /api/v1/analyze               – submit EML, returns {job_id}
+  GET  /api/v1/jobs/<job_id>         – poll job state
+  GET  /api/v1/reports/<job_id>      – full JSON analysis result
+  GET  /api/v1/reports/<job_id>/html – rendered HTML report
+  GET  /api/v1/reports/<job_id>/text – rendered plain-text report
+  GET  /api/v1/history               – paginated stored messages
 """
 
 from __future__ import annotations
 
-import asyncio
 import base64
 
-from quart import Blueprint, abort, current_app, jsonify, request
+from quart import Blueprint, abort, current_app, jsonify, make_response, request
 
-from ...config_loader import SpammyConfig
-from ...jobs import get_store
-from ...rdap_client import RDAPClient
-from ...storage import StorageError, build_storage
-from ..routes.ui import MAX_EML_BYTES, _persist, _run_analysis
+from ...service import MAX_EML_BYTES, AnalysisService
 
 internal_bp = Blueprint("internal", __name__)
+
+
+def _svc() -> AnalysisService:
+    return current_app.config["SPAMMY_SERVICE"]
 
 
 # ---------------------------------------------------------------------------
@@ -34,16 +34,10 @@ internal_bp = Blueprint("internal", __name__)
 
 @internal_bp.post("/analyze")
 async def api_analyze():
-    """Submit an EML for analysis; returns a job ID immediately.
-
-    Accepts:
-      - multipart/form-data  with field ``eml_file``
-      - application/json     with field ``eml_b64`` (base64-encoded EML)
-    """
-    cfg: SpammyConfig = current_app.config["SPAMMY_CONFIG"]
+    """Submit an EML; returns ``{job_id, state}`` 202 immediately."""
     raw: bytes | None = None
-
     content_type = request.content_type or ""
+
     if "multipart" in content_type or "form" in content_type:
         files = await request.files
         forms = await request.form
@@ -70,13 +64,7 @@ async def api_analyze():
     if len(raw) > MAX_EML_BYTES:
         abort(413, "EML exceeds 25 MB limit")
 
-    store = get_store()
-    job = store.create()
-    asyncio.ensure_future(
-        _run_analysis(job.job_id, raw, cfg),
-        loop=asyncio.get_event_loop(),
-    )
-
+    job = _svc().submit(raw)
     return jsonify({"job_id": job.job_id, "state": job.state}), 202
 
 
@@ -87,8 +75,7 @@ async def api_analyze():
 
 @internal_bp.get("/jobs/<job_id>")
 async def api_job_status(job_id: str):
-    store = get_store()
-    job = store.get(job_id)
+    job = _svc().get_job(job_id)
     if job is None:
         abort(404, "Job not found")
     payload: dict = {
@@ -103,40 +90,69 @@ async def api_job_status(job_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Full analysis result
+# Analysis result (JSON / HTML / plain-text)
 # ---------------------------------------------------------------------------
 
 
 @internal_bp.get("/reports/<job_id>")
-async def api_report(job_id: str):
-    store = get_store()
-    job = store.get(job_id)
+async def api_report_json(job_id: str):
+    job = _svc().get_job(job_id)
     if job is None:
         abort(404, "Job not found")
+    if job.state == "error":
+        abort(500, job.error or "Analysis failed")
     if job.state != "done":
         return jsonify({"job_id": job_id, "state": job.state}), 202
     return jsonify(job.result.to_dict())  # type: ignore[union-attr]
 
 
+@internal_bp.get("/reports/<job_id>/html")
+async def api_report_html(job_id: str):
+    svc = _svc()
+    result = svc.get_result(job_id)
+    if result is None:
+        job = svc.get_job(job_id)
+        if job is None:
+            abort(404, "Job not found")
+        if job.state == "error":
+            abort(500, job.error or "Analysis failed")
+        abort(202, "Not ready")
+    html = svc.render_html(result)
+    resp = await make_response(html)
+    resp.headers["Content-Type"] = "text/html; charset=utf-8"
+    return resp
+
+
+@internal_bp.get("/reports/<job_id>/text")
+async def api_report_text(job_id: str):
+    svc = _svc()
+    result = svc.get_result(job_id)
+    if result is None:
+        job = svc.get_job(job_id)
+        if job is None:
+            abort(404, "Job not found")
+        if job.state == "error":
+            abort(500, job.error or "Analysis failed")
+        abort(202, "Not ready")
+    text = svc.render_text(result)
+    resp = await make_response(text)
+    resp.headers["Content-Type"] = "text/plain; charset=utf-8"
+    return resp
+
+
 # ---------------------------------------------------------------------------
-# History (from persistent storage)
+# History
 # ---------------------------------------------------------------------------
 
 
 @internal_bp.get("/history")
 async def api_history():
-    cfg: SpammyConfig = current_app.config["SPAMMY_CONFIG"]
     try:
         limit = min(int(request.args.get("limit", 25)), 100)
     except ValueError:
         abort(400, "limit must be an integer")
 
-    try:
-        storage = build_storage(cfg.storage)
-        messages = list(storage.list_messages(limit=limit))
-    except (StorageError, Exception):
-        messages = []
-
+    messages = _svc().get_history(limit=limit)
     return jsonify(
         [
             {

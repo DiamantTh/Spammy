@@ -30,8 +30,10 @@ def create_api(config: SpammyConfig) -> FastAPI:
         dependencies=[Depends(auth_dep)],
     )
 
-    # Store config for use in route handlers
+    # Store config and service for use in route handlers
     app.state.spammy_config = config
+    from ..service import AnalysisService
+    app.state.spammy_service = AnalysisService(config)
 
     # Health (no auth)
     @app.get(

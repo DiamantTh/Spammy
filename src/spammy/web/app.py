@@ -27,6 +27,9 @@ def create_app(config: SpammyConfig) -> Quart:
     app.config["SESSION_COOKIE_SECURE"] = config.web.base_url.startswith("https")
     app.config["SPAMMY_CONFIG"] = config
 
+    from ..service import AnalysisService
+    app.config["SPAMMY_SERVICE"] = AnalysisService(config)
+
     # Jinja2 globals
     app.jinja_env.globals["csrf_token"] = get_csrf_token
     app.jinja_env.globals["app_version"] = _get_version()

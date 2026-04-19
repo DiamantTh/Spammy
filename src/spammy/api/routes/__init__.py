@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
 import base64
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 
-from ...jobs import get_store
-from ...web.routes.ui import MAX_EML_BYTES, _run_analysis
+from ...service import MAX_EML_BYTES, AnalysisService
 from ..models import (
     AnalyzeRequest,
     HistoryItem,
@@ -19,6 +17,10 @@ from ..models import (
 )
 
 router = APIRouter()
+
+
+def _svc(request: Request) -> AnalysisService:
+    return request.app.state.spammy_service
 
 
 # ---------------------------------------------------------------------------
@@ -36,20 +38,16 @@ async def api_analyze(
     body: AnalyzeRequest,
     background_tasks: BackgroundTasks,
     request: Request,
-    _auth: None = Depends(lambda: None),  # replaced in app factory
 ) -> JobCreatedResponse:
     try:
         raw = base64.b64decode(body.eml_b64)
     except Exception:
         raise HTTPException(status_code=400, detail="eml_b64 is not valid base64")
-
     if len(raw) > MAX_EML_BYTES:
         raise HTTPException(status_code=413, detail="EML exceeds 25 MB limit")
 
-    cfg = request.app.state.spammy_config
-    store = get_store()
-    job = store.create()
-    background_tasks.add_task(_run_analysis, job.job_id, raw, cfg)
+    svc = _svc(request)
+    job = svc.submit(raw)
     return JobCreatedResponse(job_id=job.job_id)
 
 
@@ -63,9 +61,8 @@ async def api_analyze(
     response_model=JobStatusResponse,
     summary="Poll analysis job status",
 )
-async def api_job_status(job_id: str) -> JobStatusResponse:
-    store = get_store()
-    job = store.get(job_id)
+async def api_job_status(job_id: str, request: Request) -> JobStatusResponse:
+    job = _svc(request).get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
     return JobStatusResponse(
@@ -86,9 +83,9 @@ async def api_job_status(job_id: str) -> JobStatusResponse:
     "/reports/{job_id}",
     summary="Retrieve full analysis result",
 )
-async def api_report(job_id: str) -> Any:
-    store = get_store()
-    job = store.get(job_id)
+async def api_report(job_id: str, request: Request) -> Any:
+    svc = _svc(request)
+    job = svc.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
     if job.state == "error":
@@ -109,18 +106,10 @@ async def api_report(job_id: str) -> Any:
     summary="List recent analysis history",
 )
 async def api_history(request: Request, limit: int = 25) -> HistoryResponse:
-    from ...storage import StorageError, build_storage
-
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail="limit must be 1–100")
 
-    cfg = request.app.state.spammy_config
-    try:
-        storage = build_storage(cfg.storage)
-        messages = list(storage.list_messages(limit=limit))
-    except (StorageError, Exception):
-        messages = []
-
+    messages = _svc(request).get_history(limit=limit)
     return HistoryResponse(
         items=[
             HistoryItem(

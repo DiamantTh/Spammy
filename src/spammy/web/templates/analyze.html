@@ -6,14 +6,10 @@
   <h1>E-Mail analysieren</h1>
 </div>
 
-{% if error %}
-<div class="flash flash--error">{{ error }}</div>
-{% endif %}
+<div id="analyze-error" class="flash flash--error" style="display:none"></div>
 
 <div class="analyze-layout">
-  <form method="post" action="{{ url_for('ui.analyze_submit') }}"
-        enctype="multipart/form-data" class="analyze-form" id="analyze-form">
-    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <form class="analyze-form" id="analyze-form" novalidate>
 
     <div class="form-tabs" id="form-tabs">
       <button type="button" class="tab-btn tab-btn--active" data-tab="upload">EML-Datei hochladen</button>
@@ -57,55 +53,4 @@
     </ul>
   </aside>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-// Tab-Umschaltung
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-btn--active'));
-    btn.classList.add('tab-btn--active');
-    const target = btn.dataset.tab;
-    document.getElementById('tab-upload').hidden = target !== 'upload';
-    document.getElementById('tab-paste').hidden  = target !== 'paste';
-  });
-});
-
-// File-Drop
-const drop  = document.getElementById('file-drop');
-const input = document.getElementById('eml_file');
-const label = document.getElementById('file-name');
-
-input.addEventListener('change', () => {
-  if (input.files[0]) {
-    label.textContent = input.files[0].name;
-    label.hidden = false;
-    drop.querySelector('.file-drop__hint').hidden = true;
-  }
-});
-
-['dragover','dragenter'].forEach(e => drop.addEventListener(e, ev => {
-  ev.preventDefault(); drop.classList.add('file-drop--active');
-}));
-['dragleave','drop'].forEach(e => drop.addEventListener(e, () => drop.classList.remove('file-drop--active')));
-drop.addEventListener('drop', ev => {
-  ev.preventDefault();
-  const file = ev.dataTransfer.files[0];
-  if (file) {
-    const dt = new DataTransfer(); dt.items.add(file);
-    input.files = dt.files;
-    label.textContent = file.name; label.hidden = false;
-    drop.querySelector('.file-drop__hint').hidden = true;
-  }
-});
-
-// Spinner beim Submit
-document.getElementById('analyze-form').addEventListener('submit', () => {
-  const btn = document.getElementById('submit-btn');
-  btn.querySelector('.btn-text').hidden = true;
-  btn.querySelector('.btn-spinner').hidden = false;
-  btn.disabled = true;
-});
-</script>
 {% endblock %}

@@ -127,6 +127,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     _argv = list(sys.argv[1:] if argv is None else argv)
     if _argv and _argv[0] == "serve":
         return _serve_main(_argv[1:])
+    if _argv and _argv[0] == "client":
+        return _client_main(_argv[1:])
     args = parse_args(_argv)
     if args.version:
         from . import __version__
@@ -378,3 +380,122 @@ def _serve_main(argv: list[str]) -> int:
         debug=args.debug,
     )
     return 0
+
+
+def _client_main(argv: list[str]) -> int:
+    """Entry-point for ``spammy client [SUBCOMMAND]``."""
+    import argparse as _ap
+    import json as _json
+
+    p = _ap.ArgumentParser(
+        prog="spammy client",
+        description="TUI client – communicate with a running Spammy server.",
+    )
+    p.add_argument(
+        "--server",
+        default="http://127.0.0.1:5000",
+        help="Base URL of the Spammy server (default: http://127.0.0.1:5000).",
+    )
+    p.add_argument(
+        "--api-key",
+        default=None,
+        help="API key for the external FastAPI endpoint (not needed for local use).",
+    )
+
+    sub = p.add_subparsers(dest="command", required=True, metavar="COMMAND")
+
+    # analyze
+    ana = sub.add_parser("analyze", help="Analyse an EML file via the server.")
+    ana.add_argument("eml", type=Path, help="Path to the EML file.")
+    ana.add_argument(
+        "--format",
+        choices=["summary", "json"],
+        default="summary",
+        help="Output format (default: summary).",
+    )
+    ana.add_argument(
+        "--timeout",
+        type=float,
+        default=60.0,
+        help="Seconds to wait for the analysis to complete (default: 60).",
+    )
+
+    # history
+    hist = sub.add_parser("history", help="Show recent analysis history from the server.")
+    hist.add_argument(
+        "--limit",
+        type=int,
+        default=25,
+        help="Number of records to fetch (default: 25).",
+    )
+
+    args = p.parse_args(argv)
+
+    from .client import SpammyClient, SpammyClientError
+
+    with SpammyClient(base_url=args.server, api_key=args.api_key) as client:
+        if args.command == "analyze":
+            path: Path = args.eml
+            if not path.is_file():
+                print(f"[spammy client] File not found: {path}", file=sys.stderr)
+                return 1
+            raw = path.read_bytes()
+            print(f"[spammy client] Submitting {path.name} to {args.server} …", file=sys.stderr)
+            try:
+                result = client.analyze(raw, poll_timeout=args.timeout)
+            except SpammyClientError as exc:
+                print(f"[spammy client] Error: {exc}", file=sys.stderr)
+                return 1
+            if args.format == "json":
+                sys.stdout.write(_json.dumps(result, ensure_ascii=False, indent=2))
+                sys.stdout.write("\n")
+            else:
+                _print_client_summary(result)
+            return 0
+
+        if args.command == "history":
+            try:
+                records = client.history(limit=args.limit)
+            except SpammyClientError as exc:
+                print(f"[spammy client] Error: {exc}", file=sys.stderr)
+                return 1
+            if not records:
+                print("No records found.")
+                return 0
+            col = "{:<40} {:<30} {:<20}"
+            print(col.format("Subject", "Sender", "Date"))
+            print("-" * 92)
+            for r in records:
+                subj = (r.get("subject") or "–")[:38]
+                sender = (r.get("sender") or "–")[:28]
+                date = r.get("created_at", "")[:19].replace("T", " ")
+                print(col.format(subj, sender, date))
+            return 0
+
+    return 0
+
+
+def _print_client_summary(result: dict) -> None:
+    meta = result.get("metadata", {})
+    score = result.get("spam_score", {})
+    auth = result.get("auth_summary", {})
+
+    print(f"Subject  : {meta.get('subject', '–')}")
+    print(f"From     : {meta.get('sender', '–')}")
+    print(f"To       : {meta.get('recipient', '–')}")
+    print()
+    total = int((score.get("total", 0) or 0) * 100)
+    verdict = "SPAM" if total >= 70 else "VERDÄCHTIG" if total >= 40 else "OK"
+    print(f"Spam-Score : {total} % [{verdict}]")
+    print()
+    print("Authentifizierung:")
+    for proto in ("spf", "dkim", "dmarc"):
+        a = auth.get(proto, {})
+        print(f"  {proto.upper():<5}: {a.get('result', 'none'):10}  {a.get('identity') or a.get('detail') or ''}")
+    print()
+    contacts = result.get("abuse_contacts", [])
+    if contacts:
+        print("Abuse-Kontakte:")
+        for c in contacts:
+            print(f"  {c['address']} ({int((c.get('confidence') or 0) * 100)} %)")
+
