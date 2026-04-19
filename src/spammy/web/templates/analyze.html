@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}E-Mail analysieren{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>E-Mail analysieren</h1>
+</div>
+
+{% if error %}
+<div class="flash flash--error">{{ error }}</div>
+{% endif %}
+
+<div class="analyze-layout">
+  <form method="post" action="{{ url_for('ui.analyze_submit') }}"
+        enctype="multipart/form-data" class="analyze-form" id="analyze-form">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+    <div class="form-tabs" id="form-tabs">
+      <button type="button" class="tab-btn tab-btn--active" data-tab="upload">EML-Datei hochladen</button>
+      <button type="button" class="tab-btn" data-tab="paste">Quelltext einfügen</button>
+    </div>
+
+    <div class="tab-panel" id="tab-upload">
+      <div class="form-group">
+        <label for="eml_file">EML-Datei</label>
+        <div class="file-drop" id="file-drop">
+          <input type="file" name="eml_file" id="eml_file" accept=".eml,.txt,message/rfc822">
+          <p class="file-drop__hint">Datei hier hineinziehen oder klicken</p>
+          <p class="file-drop__name" id="file-name" hidden></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-paste" hidden>
+      <div class="form-group">
+        <label for="raw_text">E-Mail-Quelltext (RFC 822)</label>
+        <textarea name="raw_text" id="raw_text" rows="18"
+                  placeholder="Received: from …&#10;From: …&#10;Subject: …&#10;&#10;(Nachrichtentext hier einfügen)"></textarea>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary btn--large" id="submit-btn">
+        <span class="btn-text">Analyse starten</span>
+        <span class="btn-spinner" hidden>⏳ Lädt…</span>
+      </button>
+    </div>
+  </form>
+
+  <aside class="analyze-help">
+    <h3>Hinweise</h3>
+    <ul>
+      <li>EML-Dateien können aus Thunderbird, Outlook etc. exportiert werden.</li>
+      <li>Alternativ: Vollständigen Quelltext über <em>„Original anzeigen"</em> kopieren.</li>
+      <li>Die Analyse umfasst Header-Auswertung, SPF/DKIM/DMARC, RDAP/WHOIS-Lookup und Spam-Scoring.</li>
+      <li>Maximale Dateigröße: 25 MB.</li>
+    </ul>
+  </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Tab-Umschaltung
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-btn--active'));
+    btn.classList.add('tab-btn--active');
+    const target = btn.dataset.tab;
+    document.getElementById('tab-upload').hidden = target !== 'upload';
+    document.getElementById('tab-paste').hidden  = target !== 'paste';
+  });
+});
+
+// File-Drop
+const drop  = document.getElementById('file-drop');
+const input = document.getElementById('eml_file');
+const label = document.getElementById('file-name');
+
+input.addEventListener('change', () => {
+  if (input.files[0]) {
+    label.textContent = input.files[0].name;
+    label.hidden = false;
+    drop.querySelector('.file-drop__hint').hidden = true;
+  }
+});
+
+['dragover','dragenter'].forEach(e => drop.addEventListener(e, ev => {
+  ev.preventDefault(); drop.classList.add('file-drop--active');
+}));
+['dragleave','drop'].forEach(e => drop.addEventListener(e, () => drop.classList.remove('file-drop--active')));
+drop.addEventListener('drop', ev => {
+  ev.preventDefault();
+  const file = ev.dataTransfer.files[0];
+  if (file) {
+    const dt = new DataTransfer(); dt.items.add(file);
+    input.files = dt.files;
+    label.textContent = file.name; label.hidden = false;
+    drop.querySelector('.file-drop__hint').hidden = true;
+  }
+});
+
+// Spinner beim Submit
+document.getElementById('analyze-form').addEventListener('submit', () => {
+  const btn = document.getElementById('submit-btn');
+  btn.querySelector('.btn-text').hidden = true;
+  btn.querySelector('.btn-spinner').hidden = false;
+  btn.disabled = true;
+});
+</script>
+{% endblock %}

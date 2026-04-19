@@ -1,0 +1,1 @@
+"""Spammy web routes package."""

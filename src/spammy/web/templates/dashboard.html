@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Dashboard</h1>
+  <a href="{{ url_for('ui.analyze_form') }}" class="btn btn--primary">+ E-Mail analysieren</a>
+</div>
+
+{% if active_jobs %}
+<section class="section">
+  <h2 class="section-heading">Laufende Analysen</h2>
+  <div class="job-list">
+    {% for job in active_jobs %}
+    <div class="job-card job-card--{{ job.state }}">
+      <span class="job-state">{{ job.state }}</span>
+      <span class="job-id">{{ job.job_id[:8] }}…</span>
+      <a href="{{ url_for('ui.report_view', job_id=job.job_id) }}" class="btn btn--small">Ansehen</a>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="section">
+  <h2 class="section-heading">Letzte Analysen</h2>
+  {% if recent %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Betreff</th>
+          <th>Absender</th>
+          <th>Kategorie</th>
+          <th>Datum</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for msg in recent %}
+        <tr>
+          <td class="td-subject">{{ msg.subject or '(kein Betreff)' }}</td>
+          <td class="td-mono">{{ msg.sender or '–' }}</td>
+          <td>
+            {% if msg.category == 'high' %}
+              <span class="badge badge--high">⛔ Hoch</span>
+            {% elif msg.category == 'medium' %}
+              <span class="badge badge--medium">⚠ Mittel</span>
+            {% elif msg.category == 'low' %}
+              <span class="badge badge--low">✓ Niedrig</span>
+            {% else %}
+              <span class="badge badge--neutral">–</span>
+            {% endif %}
+          </td>
+          <td class="td-date">{{ msg.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-hint">Noch keine Analysen gespeichert. <a href="{{ url_for('ui.analyze_form') }}">Erste E-Mail analysieren →</a></p>
+  {% endif %}
+</section>
+{% endblock %}

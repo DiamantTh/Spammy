@@ -40,11 +40,35 @@ class CacheSettings:
 
 
 @dataclass(frozen=True)
+class WebSettings:
+    """Settings for the Quart web UI + internal API (spammy serve)."""
+
+    host: str = "127.0.0.1"
+    port: int = 8080
+    secret_key: str = "please-change-this-secret"
+    base_url: str = "http://localhost:8080"
+    debug: bool = False
+
+
+@dataclass(frozen=True)
+class ExternalApiSettings:
+    """Settings for the optional public-facing FastAPI service."""
+
+    enabled: bool = False
+    host: str = "127.0.0.1"
+    port: int = 8081
+    # X-API-Key value; empty string = auth disabled (only do this on loopback)
+    key: str = ""
+
+
+@dataclass(frozen=True)
 class SpammyConfig:
     rdap: RDAPSettings = field(default_factory=RDAPSettings)
     reporting: ReportingSettings = field(default_factory=ReportingSettings)
     storage: StorageSettings = field(default_factory=StorageSettings)
     cache: CacheSettings = field(default_factory=CacheSettings)
+    web: WebSettings = field(default_factory=WebSettings)
+    external_api: ExternalApiSettings = field(default_factory=ExternalApiSettings)
     source: Optional[Path] = None
 
 
@@ -77,6 +101,10 @@ def load_config(path: Optional[Path] = None) -> SpammyConfig:
                 ),
                 storage=_merge_dataclass(StorageSettings(), data.get("storage", {})),
                 cache=_merge_dataclass(CacheSettings(), data.get("cache", {})),
+                web=_merge_dataclass(WebSettings(), data.get("web", {})),
+                external_api=_merge_dataclass(
+                    ExternalApiSettings(), data.get("external_api", {})
+                ),
                 source=candidate,
             )
     return SpammyConfig()

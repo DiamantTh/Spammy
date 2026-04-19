@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Spammy{% endblock %} – Spam Analyzer</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+
+<header class="site-header">
+  <div class="container">
+    <a class="site-title" href="{{ url_for('ui.dashboard') }}">
+      <span class="logo-icon">🔍</span> Spammy
+    </a>
+    <nav>
+      <a href="{{ url_for('ui.dashboard') }}">Dashboard</a>
+      <a href="{{ url_for('ui.analyze_form') }}" class="btn btn--primary btn--small">Analysieren</a>
+      <span class="app-version">v{{ app_version }}</span>
+    </nav>
+  </div>
+</header>
+
+<main class="site-main container">
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>Spammy {{ app_version }} – lokal, selbst gehostet, AGPL-3.0</p>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

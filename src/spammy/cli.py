@@ -124,7 +124,10 @@ def load_input(path: Optional[Path]) -> bytes:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    args = parse_args(argv)
+    _argv = list(sys.argv[1:] if argv is None else argv)
+    if _argv and _argv[0] == "serve":
+        return _serve_main(_argv[1:])
+    args = parse_args(_argv)
     if args.version:
         from . import __version__
 
@@ -343,3 +346,35 @@ def _maybe_confirm_stdout(format_choice: str, auto_stdout: bool) -> str:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
+
+
+def _serve_main(argv: list[str]) -> int:
+    """Entry-point for ``spammy serve [OPTIONS]``."""
+    import argparse as _ap
+
+    p = _ap.ArgumentParser(prog="spammy serve", description="Start the Spammy web server.")
+    p.add_argument("--host", default=None, help="Bind address for the web UI (overrides config).")
+    p.add_argument("--port", type=int, default=None, help="Port for the web UI (overrides config).")
+    p.add_argument("--with-api", action="store_true", help="Also start the external FastAPI service.")
+    p.add_argument("--api-host", default=None, help="Bind address for the external API.")
+    p.add_argument("--api-port", type=int, default=None, help="Port for the external API.")
+    p.add_argument("--debug", action="store_true", help="Enable debug mode (auto-reload, verbose errors).")
+    p.add_argument("--config", type=Path, default=None, help="Path to spammy.toml config file.")
+    args = p.parse_args(argv)
+
+    import logging
+    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+
+    cfg = load_config(args.config)
+
+    from .server import run as server_run
+    server_run(
+        config=cfg,
+        host=args.host,
+        port=args.port,
+        api_host=args.api_host,
+        api_port=args.api_port,
+        with_api=args.with_api,
+        debug=args.debug,
+    )
+    return 0

@@ -32,3 +32,36 @@ backend = "sqlite"
 
 [cache]
 # url = "memcached://localhost:11211"
+
+# ── Web UI (Quart) ──────────────────────────────────────────────────────────
+# Starte den Web-Server mit: spammy serve
+#
+[web]
+# Bind-Adresse und Port für die Web-Oberfläche.
+# Für öffentliche Instanzen bitte hinter einem Reverse-Proxy (nginx/Caddy) betreiben.
+host    = "127.0.0.1"
+port    = 8080
+
+# Muss ein langer, zufälliger String sein – niemals den Beispielwert verwenden!
+# Generiere einen mit: python -c "import secrets; print(secrets.token_hex(32))"
+secret_key = "please-change-this-secret"
+
+# Öffentlich erreichbare Basis-URL (wird für CSRF-Prüfung und Redirects verwendet)
+base_url = "http://localhost:8080"
+
+# Nur für lokale Entwicklung! Niemals im Produktiveinsatz aktivieren.
+debug = false
+
+# ── Externe öffentliche API (FastAPI) ──────────────────────────────────────
+# Aktiviere die externe API mit: spammy serve --with-api
+# oder setze enabled = true in dieser Sektion.
+#
+[external_api]
+enabled = false
+host    = "127.0.0.1"
+port    = 8081
+
+# X-API-Key für den Zugriff auf die externe API.
+# Leer = Authentifizierung deaktiviert (nur für loopback/LAN geeignet).
+# Generiere einen mit: python -c "import secrets; print(secrets.token_hex(32))"
+key = ""
