@@ -179,6 +179,42 @@ def extract_body_indicators(message: EmailMessage) -> BodyIndicators:
     return BodyIndicators(urls=urls, domains=domains, ips=ips)
 
 
+def extract_body_text(message: EmailMessage) -> str:
+    """Return the body as a single plain-text string for content scoring.
+
+    Preference order: text/plain first, then HTML with tags stripped.
+    The returned string is suitable for passing to ``score_body_text()``.
+    """
+    plain_parts: List[str] = []
+    html_parts: List[str] = []
+
+    for part in message.walk():
+        if part.get_content_maintype() == "multipart":
+            continue
+        content_type = part.get_content_type()
+        try:
+            raw = part.get_payload(decode=True)
+            if not raw:
+                continue
+            text = raw.decode(part.get_content_charset() or "utf-8", errors="replace")
+        except Exception:  # pragma: no cover
+            continue
+        if content_type == "text/plain":
+            plain_parts.append(text)
+        elif content_type == "text/html":
+            html_parts.append(text)
+
+    if plain_parts:
+        return "\n".join(plain_parts)
+
+    # Strip HTML tags from HTML-only messages
+    combined = "\n".join(html_parts)
+    combined = re.sub(r"<[^>]+>", " ", combined)
+    combined = re.sub(r"&[a-zA-Z]{2,6};", " ", combined)
+    combined = re.sub(r"\s{2,}", " ", combined)
+    return combined.strip()
+
+
 def _normalize_domain(domain: str) -> str:
     value = domain.lower().strip().strip(".")
     return value

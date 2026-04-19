@@ -92,6 +92,29 @@ class AuthSummary:
 
 
 @dataclass
+class SpamSignal:
+    """A single weighted indicator contributing to the spam score."""
+
+    name: str
+    description: str
+    weight: float
+    category: str  # "header" | "body" | "url" | "auth" | "network"
+
+
+@dataclass
+class SpamScore:
+    """Aggregated, weighted spam probability score (0.0 = clean, 1.0 = spam)."""
+
+    total: float = 0.0
+    header_score: float = 0.0
+    body_score: float = 0.0
+    url_score: float = 0.0
+    auth_score: float = 0.0
+    network_score: float = 0.0
+    signals: List[SpamSignal] = field(default_factory=list)
+
+
+@dataclass
 class BodyIndicators:
     urls: List[str] = field(default_factory=list)
     domains: List[str] = field(default_factory=list)
@@ -139,6 +162,7 @@ class AnalysisResult:
     body_indicators: BodyIndicators = field(default_factory=BodyIndicators)
     body_link_details: List[BodyLinkDetail] = field(default_factory=list)
     dns_checks: DNSCheckSummary = field(default_factory=DNSCheckSummary)
+    spam_score: SpamScore = field(default_factory=SpamScore)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize the result for JSON output."""
@@ -230,6 +254,23 @@ class AnalysisResult:
                 "spf_error": self.dns_checks.spf_error,
                 "blocklist_hits": self.dns_checks.blocklist_hits,
                 "blocklist_error": self.dns_checks.blocklist_error,
+            },
+            "spam_score": {
+                "total": self.spam_score.total,
+                "header_score": self.spam_score.header_score,
+                "body_score": self.spam_score.body_score,
+                "url_score": self.spam_score.url_score,
+                "auth_score": self.spam_score.auth_score,
+                "network_score": self.spam_score.network_score,
+                "signals": [
+                    {
+                        "name": s.name,
+                        "description": s.description,
+                        "weight": s.weight,
+                        "category": s.category,
+                    }
+                    for s in self.spam_score.signals
+                ],
             },
         }
 

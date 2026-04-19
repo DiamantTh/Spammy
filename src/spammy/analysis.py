@@ -18,6 +18,7 @@ from .models import (
 from .parsing import (
     collect_received_hops,
     extract_body_indicators,
+    extract_body_text,
     extract_inner_message,
     guess_origin_ip,
     load_message,
@@ -25,7 +26,8 @@ from .parsing import (
     parse_authentication_summary,
     summarize_attachments,
 )
-from .rdap_client import RDAPClient
+from .rdap_client import RDAPClient, rfc2142_contacts
+from .scoring import compute_spam_score
 
 
 LANGUAGE_MAP = {
@@ -82,22 +84,35 @@ def analyze_message(raw_data: bytes, rdap_client: Optional[RDAPClient] = None) -
 
     outer_message = load_message(raw_data)
     inner_message = extract_inner_message(outer_message) or outer_message
+
+    # =========================================================================
+    # PHASE 1 – HEADER ANALYSIS
+    # Structural signals: routing path, authentication, DNS reputation.
+    # =========================================================================
     metadata = metadata_from_message(inner_message)
     received_hops = collect_received_hops(inner_message)
     candidate_ip = guess_origin_ip(received_hops)
     attachments = summarize_attachments(inner_message)
-    body_indicators = extract_body_indicators(inner_message)
-    body_link_details = _resolve_body_links(body_indicators.urls, rdap_client=client)
     auth_summary = parse_authentication_summary(inner_message)
     sender_domain = metadata.sender.split("@")[-1].lower() if "@" in metadata.sender else None
     dns_checks = perform_dns_checks(candidate_ip, sender_domain)
 
+    # RDAP (primary, authoritative) + WHOIS fallback (handled inside lookup_ip)
     rdap_record = client.lookup_ip(candidate_ip)
     domain_record = client.lookup_domain(sender_domain)
+
+    # RFC 2142 last-resort: use PTR hostname if structured lookups yielded nothing
+    rfc2142 = []
+    has_structured_contacts = bool(
+        (rdap_record and rdap_record.contacts) or (domain_record and domain_record.contacts)
+    )
+    if not has_structured_contacts and dns_checks.reverse_dns:
+        rfc2142 = rfc2142_contacts(dns_checks.reverse_dns)
 
     abuse_contacts = _merge_contacts(
         rdap_record.contacts if rdap_record else None,
         domain_record.contacts if domain_record else None,
+        rfc2142 or None,
     )
 
     country_code = None
@@ -107,6 +122,27 @@ def analyze_message(raw_data: bytes, rdap_client: Optional[RDAPClient] = None) -
         country_code = domain_record.country
 
     preferred_language = determine_language(country_code)
+
+    # =========================================================================
+    # PHASE 2 – BODY ANALYSIS
+    # Content signals: URLs, spam text patterns, link destinations.
+    # =========================================================================
+    body_indicators = extract_body_indicators(inner_message)
+    body_text = extract_body_text(inner_message)
+    body_link_details = _resolve_body_links(body_indicators.urls, rdap_client=client)
+
+    # =========================================================================
+    # SCORING – combine header + body signals into a weighted SpamScore
+    # =========================================================================
+    spam_score = compute_spam_score(
+        metadata=metadata,
+        received_hops=received_hops,
+        auth_summary=auth_summary,
+        body_indicators=body_indicators,
+        body_link_details=body_link_details,
+        dns_checks=dns_checks,
+        body_text=body_text,
+    )
 
     return AnalysisResult(
         metadata=metadata,
@@ -123,6 +159,7 @@ def analyze_message(raw_data: bytes, rdap_client: Optional[RDAPClient] = None) -
         body_indicators=body_indicators,
         body_link_details=body_link_details,
         dns_checks=dns_checks,
+        spam_score=spam_score,
     )
 
 

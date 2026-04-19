@@ -81,6 +81,28 @@ def _match_emails(payload: Any) -> List[str]:
     return normalized
 
 
+def _split_emails(raw: str) -> List[str]:
+    """Split a comma- or newline-separated email string into individual addresses."""
+    if not raw:
+        return []
+    return [part.strip() for part in re.split(r"[,\n\r]+", raw) if part.strip()]
+
+
+def rfc2142_contacts(hostname: str) -> List[AbuseContact]:
+    """Return RFC 2142 best-effort abuse/postmaster contacts for *hostname*.
+
+    These are guesses based on convention, not looked up, so confidence is low.
+    Only used as a last-resort fallback when all structured lookups fail.
+    """
+    if not hostname:
+        return []
+    domain = hostname.lstrip("*").lstrip(".").lower()
+    return [
+        AbuseContact(address=f"abuse@{domain}", source="rfc2142:guess", confidence=0.30),
+        AbuseContact(address=f"postmaster@{domain}", source="rfc2142:guess", confidence=0.20),
+    ]
+
+
 @dataclass
 class RDAPClient:
     timeout: int = 8
@@ -113,31 +135,48 @@ class RDAPClient:
         if not ip:
             return None
 
-        payload: Optional[Dict[str, Any]] = None
+        rdap_payload: Optional[Dict[str, Any]] = None
+        whois_payload: Optional[Dict[str, Any]] = None
+
+        # --- Step 1: RDAP (most authoritative / freshest) ---
         if IPWhois is not None:
             try:
-                payload = IPWhois(ip).lookup_rdap(depth=1)
+                rdap_payload = IPWhois(ip).lookup_rdap(depth=1)
             except (IPDefinedError, HTTPLookupError, OSError, ValueError):
-                payload = None
+                rdap_payload = None
 
-        if payload is None:
-            payload = self._http_get(f"ip/{ip}")
+        if rdap_payload is None:
+            rdap_payload = self._http_get(f"ip/{ip}")
 
+        # --- Step 2: WHOIS fallback (lower confidence, older data) ---
+        # Used when RDAP produced no contacts or the lookup failed entirely.
+        if IPWhois is not None and (
+            rdap_payload is None
+            or not self._extract_contacts(rdap_payload) if rdap_payload else True
+        ):
+            try:
+                whois_payload = IPWhois(ip).lookup_whois()
+            except (IPDefinedError, OSError, ValueError):
+                whois_payload = None
+
+        # Use RDAP as primary payload for owner info; supplement contacts from WHOIS
+        payload = rdap_payload or whois_payload
         if not payload:
             return None
 
+        network = payload.get("network") if isinstance(payload.get("network"), dict) else {}
         owner = NetworkOwner(
-            name=payload.get("network", {}).get("name")
-            if isinstance(payload.get("network"), dict)
-            else payload.get("name"),
-            handle=payload.get("network", {}).get("handle") if isinstance(payload.get("network"), dict) else payload.get("handle"),
-            country=payload.get("network", {}).get("country")
-            if isinstance(payload.get("network"), dict)
-            else payload.get("country"),
+            name=network.get("name") if network else payload.get("name"),
+            handle=network.get("handle") if network else payload.get("handle"),
+            country=network.get("country") if network else payload.get("country"),
             rir=payload.get("asn_registry") or payload.get("port43"),
         )
 
-        contacts = self._extract_contacts(payload)
+        contacts: List[AbuseContact] = []
+        if rdap_payload:
+            contacts.extend(self._extract_contacts(rdap_payload, source_prefix="rdap"))
+        if whois_payload:
+            contacts.extend(self._extract_contacts_from_whois(whois_payload))
 
         return RDAPRecord(
             ip=ip,
@@ -145,6 +184,30 @@ class RDAPClient:
             contacts=_dedupe_contacts(contacts),
             raw=payload,
         )
+
+    def _extract_contacts_from_whois(self, payload: Dict[str, Any]) -> List[AbuseContact]:
+        """Extract abuse contacts from an ipwhois.lookup_whois() result.
+
+        WHOIS data is considered less authoritative than RDAP, so confidence
+        values are capped at 0.75 (abuse_emails) and 0.50 (generic emails).
+        """
+        contacts: List[AbuseContact] = []
+        nets = payload.get("nets") or []
+        for net in nets:
+            if not isinstance(net, dict):
+                continue
+            # abuse_emails is a comma-separated string or None
+            for raw in _split_emails(net.get("abuse_emails") or ""):
+                addr = _normalize_email(raw)
+                if addr:
+                    contacts.append(AbuseContact(address=addr, source="whois:abuse_emails", confidence=0.75))
+            # generic emails (tech, admin, …)
+            for raw in _split_emails(net.get("emails") or ""):
+                addr = _normalize_email(raw)
+                if addr:
+                    conf = 0.75 if "abuse" in addr.lower() else 0.50
+                    contacts.append(AbuseContact(address=addr, source="whois:emails", confidence=conf))
+        return contacts
 
     def lookup_domain(self, domain: Optional[str]) -> Optional[DomainRecord]:
         if not domain:
