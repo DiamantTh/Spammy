@@ -66,20 +66,15 @@ def determine_language(country_code: Optional[str]) -> str:
 
 
 def _merge_contacts(*lists: Optional[List[AbuseContact]]) -> List[AbuseContact]:
-    merged: List[AbuseContact] = []
-    seen = set()
+    seen: dict[str, AbuseContact] = {}
     for contact_list in lists:
         if not contact_list:
             continue
         for contact in contact_list:
             key = contact.address.lower()
-            existing = next((c for c in merged if c.address.lower() == key), None)
-            if not existing:
-                merged.append(contact)
-            elif contact.confidence > existing.confidence:
-                existing.confidence = contact.confidence
-                existing.source = contact.source
-    return merged
+            if key not in seen or contact.confidence > seen[key].confidence:
+                seen[key] = contact
+    return list(seen.values())
 
 
 def analyze_message(raw_data: bytes, rdap_client: Optional[RDAPClient] = None) -> AnalysisResult:
@@ -174,9 +169,12 @@ def _resolve_body_links(urls: List[str], rdap_client: RDAPClient) -> List[BodyLi
 
 
 def _resolve_ips(domain: str, limit: int = 3) -> List[str]:
+    import concurrent.futures
     try:
-        infos = socket.getaddrinfo(domain, None)
-    except socket.gaierror:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(socket.getaddrinfo, domain, None)
+            infos = future.result(timeout=3.0)
+    except (socket.gaierror, concurrent.futures.TimeoutError, OSError):
         return []
     ips: List[str] = []
     for info in infos:

@@ -5,10 +5,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-try:  # Python 3.11+
-    import tomllib  # type: ignore[attr-defined]
-except ModuleNotFoundError:  # pragma: no cover - fallback for 3.10
-    import tomli as tomllib  # type: ignore[import-not-found]
+import tomllib
 
 CONFIG_ENV_VAR = "SPAMMY_CONFIG"
 DEFAULT_FILE_NAME = "spammy.toml"

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from jinja2 import ChoiceLoader, Environment, FileSystemLoader, PackageLoader, TemplateNotFound, select_autoescape
+from jinja2 import ChoiceLoader, Environment, FileSystemLoader, PackageLoader, TemplateNotFound
 from jinja2.filters import do_tojson
 
 from .models import AnalysisResult
@@ -18,7 +18,7 @@ class ReportBuilder:
         loaders.append(PackageLoader("spammy", "templates"))
         self.env = Environment(
             loader=ChoiceLoader(loaders),
-            autoescape=select_autoescape(["html", "xml"]),
+            autoescape=True,
             trim_blocks=True,
             lstrip_blocks=True,
         )

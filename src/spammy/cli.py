@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 from uuid import uuid4
@@ -106,10 +106,21 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+MAX_EML_BYTES = 25 * 1024 * 1024  # 25 MB hard limit
+
+
 def load_input(path: Optional[Path]) -> bytes:
     if path:
+        size = path.stat().st_size
+        if size > MAX_EML_BYTES:
+            print(f"[spammy] EML file too large ({size} bytes > {MAX_EML_BYTES})", file=sys.stderr)
+            sys.exit(1)
         return path.read_bytes()
-    return sys.stdin.buffer.read()
+    data = sys.stdin.buffer.read(MAX_EML_BYTES + 1)
+    if len(data) > MAX_EML_BYTES:
+        print(f"[spammy] stdin input too large (>{MAX_EML_BYTES} bytes)", file=sys.stderr)
+        sys.exit(1)
+    return data
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -130,7 +141,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         print(f"[spammy] Failed to initialise storage backend: {exc}", file=sys.stderr)
         storage_backend = None
 
-    client = RDAPClient(timeout=timeout, rdap_base=rdap_base)
+    try:
+        client = RDAPClient(timeout=timeout, rdap_base=rdap_base)
+    except ValueError as exc:
+        print(f"[spammy] Invalid RDAP base URL: {exc}", file=sys.stderr)
+        return 1
     result = analyze_message(raw, rdap_client=client)
     _persist_result(storage_backend, result)
 
@@ -174,7 +189,7 @@ def _persist_result(storage: Optional[StorageBackend], result) -> None:
 
 def _build_records(result):
     message_uuid = result.metadata.message_id or str(uuid4())
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     message_record = MessageRecord(
         message_id=message_uuid,
         subject=result.metadata.subject,

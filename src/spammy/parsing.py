@@ -81,7 +81,12 @@ def _parse_received_timestamp(raw_header: str) -> Optional[datetime]:
 def _extract_ip(raw_header: str) -> Optional[str]:
     match = IPV4_RE.search(raw_header)
     if match:
-        return match.group(0)
+        candidate = match.group(0)
+        try:
+            ipaddress.ip_address(candidate)
+            return candidate
+        except ValueError:
+            pass
 
     match = IPV6_RE.search(raw_header)
     if match:

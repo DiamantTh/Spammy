@@ -87,6 +87,14 @@ class RDAPClient:
     user_agent: str = "SpamReporter/0.1 (+https://example.local)"
     rdap_base: str = "https://rdap.org"
 
+    def __post_init__(self) -> None:
+        from urllib.parse import urlparse
+        parsed = urlparse(self.rdap_base)
+        if parsed.scheme not in ("https", "http"):
+            raise ValueError(f"Invalid RDAP base URL scheme: {parsed.scheme!r}. Only http/https are allowed.")
+        if not parsed.netloc:
+            raise ValueError("RDAP base URL must include a hostname.")
+
     def _http_get(self, path: str) -> Optional[Dict[str, Any]]:
         url = f"{self.rdap_base.rstrip('/')}/{path.lstrip('/')}"
         try:
