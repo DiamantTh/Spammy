@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import platform
+import sys
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
@@ -84,6 +87,65 @@ class AnalysisService:
     def render_text(self, result: AnalysisResult, lang: str | None = None) -> str:
         builder = ReportBuilder(template_dir=self._config.reporting.template_dir)
         return builder.render_text(result, lang=lang or result.preferred_language)
+
+    # ------------------------------------------------------------------
+    # Stats & System
+    # ------------------------------------------------------------------
+
+    def get_stats(self) -> dict:
+        """Return job counters + storage count."""
+        job_stats = get_store().stats()
+        storage_total: int = -1
+        try:
+            storage = build_storage(self._config.storage)
+            storage_total = storage.count_messages()
+        except Exception:
+            pass
+        return {
+            "jobs": job_stats,
+            "storage": {"total_messages": storage_total},
+        }
+
+    def get_system_info(self) -> dict:
+        """Return runtime + hardware info (psutil optional)."""
+        from .version import get_version
+
+        info: dict = {
+            "version": get_version(),
+            "python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+            "platform": platform.system(),
+            "platform_release": platform.release(),
+            "cpu_count": os.cpu_count(),
+            "cpu_percent": None,
+            "memory_total_mb": None,
+            "memory_used_mb": None,
+            "memory_percent": None,
+            "disk_free_mb": None,
+            "disk_total_mb": None,
+        }
+        try:
+            import psutil  # type: ignore[import-untyped]
+
+            info["cpu_percent"] = psutil.cpu_percent(interval=0.1)
+            vm = psutil.virtual_memory()
+            info["memory_total_mb"] = round(vm.total / 1024 / 1024)
+            info["memory_used_mb"] = round(vm.used / 1024 / 1024)
+            info["memory_percent"] = round(vm.percent, 1)
+            disk = psutil.disk_usage("/")
+            info["disk_free_mb"] = round(disk.free / 1024 / 1024)
+            info["disk_total_mb"] = round(disk.total / 1024 / 1024)
+        except ImportError:
+            pass
+        return info
+
+    async def cancel_job(self, job_id: str) -> bool:
+        """Cancel a *pending* job.  Returns True if successfully cancelled."""
+        store = get_store()
+        job = store.get(job_id)
+        if job is None or job.state != "pending":
+            return False
+        await store.mark_error(job_id, "Cancelled by user")
+        return True
 
 
 # ---------------------------------------------------------------------------

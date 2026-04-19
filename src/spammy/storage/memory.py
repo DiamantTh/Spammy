@@ -37,3 +37,6 @@ class InMemoryStorage(StorageBackend):
         if category:
             results = [msg for msg in results if msg.category == category]
         return list(reversed(results))[:limit]
+
+    def count_messages(self) -> int:
+        return len(self._messages)

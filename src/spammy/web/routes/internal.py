@@ -166,3 +166,94 @@ async def api_history():
             for m in messages
         ]
     )
+
+
+# ---------------------------------------------------------------------------
+# Stats
+# ---------------------------------------------------------------------------
+
+
+@internal_bp.get("/stats")
+async def api_stats():
+    """Return job counters and storage message count."""
+    return jsonify(_svc().get_stats())
+
+
+# ---------------------------------------------------------------------------
+# System info
+# ---------------------------------------------------------------------------
+
+
+@internal_bp.get("/system")
+async def api_system():
+    """Return runtime and hardware info (CPU, RAM, disk if psutil is available)."""
+    return jsonify(_svc().get_system_info())
+
+
+# ---------------------------------------------------------------------------
+# Prometheus-compatible metrics
+# ---------------------------------------------------------------------------
+
+
+@internal_bp.get("/metrics")
+async def api_metrics():
+    """Expose metrics in Prometheus text exposition format 0.0.4."""
+    stats = _svc().get_stats()
+    jobs = stats["jobs"]
+    storage = stats["storage"]
+    sys_info = _svc().get_system_info()
+
+    def _g(name: str, help_: str, value) -> list[str]:
+        return [
+            f"# HELP {name} {help_}",
+            f"# TYPE {name} gauge",
+            f"{name} {value}",
+        ]
+
+    def _c(name: str, help_: str, value) -> list[str]:
+        return [
+            f"# HELP {name} {help_}",
+            f"# TYPE {name} counter",
+            f"{name}_total {value}",
+        ]
+
+    lines: list[str] = []
+    lines += _g("spammy_jobs_pending",  "Pending analysis jobs",                       jobs["pending"])
+    lines += _g("spammy_jobs_running",  "Currently running analysis jobs",             jobs["running"])
+    lines += _g("spammy_jobs_done",     "Completed analysis jobs held in memory",      jobs["done"])
+    lines += _g("spammy_jobs_error",    "Failed analysis jobs held in memory",         jobs["error"])
+    lines += _c("spammy_jobs_submitted","Total analysis jobs submitted since startup", jobs["total_submitted"])
+    lines += _g("spammy_uptime_seconds","Server uptime in seconds",                    jobs["uptime_seconds"])
+    lines += _g("spammy_storage_messages","Total messages in persistent storage",      storage["total_messages"])
+
+    if sys_info.get("cpu_percent") is not None:
+        lines += _g("spammy_cpu_percent",     "CPU usage percentage",      sys_info["cpu_percent"])
+    if sys_info.get("memory_percent") is not None:
+        lines += _g("spammy_memory_percent",  "Memory usage percentage",   sys_info["memory_percent"])
+    if sys_info.get("memory_used_mb") is not None:
+        lines += _g("spammy_memory_used_mb",  "Used memory in MiB",        sys_info["memory_used_mb"])
+    if sys_info.get("disk_free_mb") is not None:
+        lines += _g("spammy_disk_free_mb",    "Free disk space in MiB",    sys_info["disk_free_mb"])
+
+    body = "\n".join(lines) + "\n"
+    resp = await make_response(body)
+    resp.headers["Content-Type"] = "text/plain; version=0.0.4; charset=utf-8"
+    return resp
+
+
+# ---------------------------------------------------------------------------
+# Job management
+# ---------------------------------------------------------------------------
+
+
+@internal_bp.delete("/jobs/<job_id>")
+async def api_cancel_job(job_id: str):
+    """Cancel a *pending* job.  Returns 409 if the job is not in pending state."""
+    svc = _svc()
+    cancelled = await svc.cancel_job(job_id)
+    if not cancelled:
+        job = svc.get_job(job_id)
+        if job is None:
+            abort(404, "Job not found")
+        abort(409, f"Job is already in state '{job.state}'; only pending jobs can be cancelled")
+    return jsonify({"job_id": job_id, "state": "cancelled", "message": "Job cancelled"})

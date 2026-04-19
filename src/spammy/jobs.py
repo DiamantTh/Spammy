@@ -36,6 +36,8 @@ class JobStore:
     def __init__(self) -> None:
         self._jobs: Dict[str, Job] = {}
         self._lock = asyncio.Lock()
+        self._total_submitted: int = 0
+        self._started_at: datetime = datetime.now(timezone.utc)
 
     def create(self) -> Job:
         """Create a new *pending* job and return it synchronously."""
@@ -45,6 +47,7 @@ class JobStore:
             created_at=datetime.now(timezone.utc),
         )
         self._jobs[job.job_id] = job
+        self._total_submitted += 1
         self._maybe_prune()
         return job
 
@@ -83,6 +86,23 @@ class JobStore:
             to_remove = len(self._jobs) - self._MAX_JOBS
             for job in finished[:to_remove]:
                 del self._jobs[job.job_id]
+
+    def stats(self) -> dict:
+        """Return job-state counters and uptime info (synchronous, lock-free snapshot)."""
+        counts: Dict[str, int] = {"pending": 0, "running": 0, "done": 0, "error": 0}
+        for job in self._jobs.values():
+            counts[job.state] = counts.get(job.state, 0) + 1
+        uptime = (datetime.now(timezone.utc) - self._started_at).total_seconds()
+        return {
+            "pending": counts["pending"],
+            "running": counts["running"],
+            "done": counts["done"],
+            "error": counts["error"],
+            "total_submitted": self._total_submitted,
+            "in_memory": len(self._jobs),
+            "uptime_seconds": round(uptime, 1),
+            "started_at": self._started_at.isoformat(),
+        }
 
 
 # Module-level singleton – shared within one process

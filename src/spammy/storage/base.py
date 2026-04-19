@@ -58,3 +58,6 @@ class StorageBackend(Protocol):
     ) -> Iterable[MessageRecord]:
         """Return recently stored messages, optionally filtered by category."""
 
+    def count_messages(self) -> int:
+        """Return the total number of stored messages."""
+

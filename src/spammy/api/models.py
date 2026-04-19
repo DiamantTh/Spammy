@@ -55,3 +55,48 @@ class HistoryResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: Literal["ok"] = "ok"
     version: str
+
+
+# ---------------------------------------------------------------------------
+# Stats & System
+# ---------------------------------------------------------------------------
+
+
+class JobStatsDetail(BaseModel):
+    pending: int
+    running: int
+    done: int
+    error: int
+    total_submitted: int
+    in_memory: int
+    uptime_seconds: float
+    started_at: datetime
+
+
+class StorageStatsDetail(BaseModel):
+    total_messages: int
+
+
+class StatsResponse(BaseModel):
+    jobs: JobStatsDetail
+    storage: StorageStatsDetail
+
+
+class SystemInfoResponse(BaseModel):
+    version: str
+    python: str
+    platform: str
+    platform_release: str
+    cpu_count: Optional[int] = None
+    cpu_percent: Optional[float] = None
+    memory_total_mb: Optional[int] = None
+    memory_used_mb: Optional[int] = None
+    memory_percent: Optional[float] = None
+    disk_free_mb: Optional[int] = None
+    disk_total_mb: Optional[int] = None
+
+
+class CancelJobResponse(BaseModel):
+    job_id: str
+    state: str
+    message: str = "Job cancelled"

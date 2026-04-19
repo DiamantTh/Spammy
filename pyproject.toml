@@ -29,6 +29,7 @@ web = [
   "hypercorn>=0.17",
   "aiofiles>=24.1",
   "python-multipart>=0.0.20",
+  "psutil>=6.0",
 ]
 api = [
   "spammy[web]",

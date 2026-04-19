@@ -147,3 +147,8 @@ class SQLiteStorage(StorageBackend):
                 category=row[5],
                 created_at=datetime.fromisoformat(row[6]),
             )
+
+    def count_messages(self) -> int:
+        with self._connect() as conn:
+            row = conn.execute("SELECT COUNT(*) FROM messages").fetchone()
+        return int(row[0]) if row else 0
