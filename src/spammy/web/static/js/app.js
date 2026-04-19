@@ -67,6 +67,26 @@ const DashboardPage = (() => {
     </tr>`;
   }
 
+  async function loadStats() {
+    try {
+      const data = await SpammyClient.get('/api/v1/stats');
+      const j = data.jobs;
+      const s = data.storage;
+      function fmt(id, val) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      }
+      fmt('stat-pending-val', j.pending);
+      fmt('stat-running-val', j.running);
+      fmt('stat-done-val', j.done);
+      fmt('stat-total-val', j.total_submitted);
+      fmt('stat-storage-val', s.total_messages);
+      const h = Math.floor(j.uptime_seconds / 3600);
+      const m = Math.floor((j.uptime_seconds % 3600) / 60);
+      fmt('stat-uptime-val', `${h}h ${m}m`);
+    } catch (_) { /* ignorieren – Stats sind optional */ }
+  }
+
   async function loadHistory() {
     const tbody = document.getElementById('history-tbody');
     if (!tbody) return;
@@ -84,7 +104,9 @@ const DashboardPage = (() => {
 
   function init() {
     if (!document.getElementById('history-tbody')) return;
+    loadStats();
     loadHistory();
+    setInterval(loadStats, 10000);
     setInterval(loadHistory, 5000);
   }
 

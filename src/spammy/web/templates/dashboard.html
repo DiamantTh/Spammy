@@ -7,6 +7,36 @@
   <a href="{{ url_for('ui.analyze_form') }}" class="btn btn--primary">+ E-Mail analysieren</a>
 </div>
 
+<section class="section" id="stats-section">
+  <h2 class="section-heading">System-Status</h2>
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card" id="stat-pending">
+      <div class="stat-value" id="stat-pending-val">–</div>
+      <div class="stat-label">Ausstehend</div>
+    </div>
+    <div class="stat-card" id="stat-running">
+      <div class="stat-value" id="stat-running-val">–</div>
+      <div class="stat-label">Läuft</div>
+    </div>
+    <div class="stat-card" id="stat-done">
+      <div class="stat-value" id="stat-done-val">–</div>
+      <div class="stat-label">Abgeschlossen</div>
+    </div>
+    <div class="stat-card" id="stat-total">
+      <div class="stat-value" id="stat-total-val">–</div>
+      <div class="stat-label">Gesamt (seit Start)</div>
+    </div>
+    <div class="stat-card" id="stat-storage">
+      <div class="stat-value" id="stat-storage-val">–</div>
+      <div class="stat-label">Gespeichert</div>
+    </div>
+    <div class="stat-card" id="stat-uptime">
+      <div class="stat-value" id="stat-uptime-val">–</div>
+      <div class="stat-label">Laufzeit</div>
+    </div>
+  </div>
+</section>
+
 <section class="section" id="active-jobs-section" style="display:none">
   <h2 class="section-heading">Laufende Analysen</h2>
   <div class="job-list" id="active-jobs-list"></div>
